@@ -79,9 +79,52 @@ class scaled_dot_product_attention(nn.Module):
         if scale:
             attention = attention * scale
         attention = self.softmax(attention)
+        attention = self.dropout(attention)
         context = torch.einsum('ijl,ilk->ijk', [attention, v])
         return context, attention
-        
+
+# TODO:调试
+class multi_heads_self_attention(nn.Module):
+    def __init__(self, feature_dim=64, num_heads=4, dropout=0.0):
+        super(multi_heads_self_attention, self).__init__()
+
+        self.dim_per_head = feature_dim // num_heads
+        self.num_heads = num_heads
+        self.linear_q = nn.Linear(feature_dim, feature_dim)
+        self.linear_k = nn.Linear(feature_dim, feature_dim)
+        self.linear_v = nn.Linear(feature_dim, feature_dim)
+
+        self.sdp_attention = scaled_dot_product_attention(dropout)
+        self.linear_final = nn.Linear(feature_dim, feature_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(feature_dim)
+
+    def forward(self, key, value, query):
+        residual = query
+        batch_size = key.size(0)
+
+        key = self.linear_k(key)
+        value = self.linear_v(value)
+        query = self.linear_q(query)
+
+        # split by heads
+        key = key.view(batch_size * self.num_heads, -1, self.dim_per_head)
+        value = value.view(batch_size * self.num_heads, -1, self.dim_per_head)
+        query = query.view(batch_size * self.num_heads, -1, self.dim_per_head)
+
+        scale = (key.size(-1) // self.num_heads) ** -0.5
+        context, attention = self.sdp_attention(query, key, value, scale)
+
+        # concat heads
+        context = context.view(batch_size, -1, self.dim_per_head * self.num_heads)
+
+        output = self.linear_final(context)
+        output = self.dropout(output)
+
+        # add residual and norm layer
+        output = self.layer_norm(residual + output)
+
+        return output, attention
 
 class Sequence(nn.Module):
     def __init__(self, feature_num):
