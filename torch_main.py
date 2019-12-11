@@ -34,8 +34,8 @@ def series_to_supervised(df, n_in=1, n_out=1, dropnan=True):
 		agg.dropna(inplace=True)
 	return agg
 
-def read_data():
-    df = pd.read_csv('/home/lab106/zy/CTT/ctt.csv')
+def read_data(reframe=True):
+    df = pd.read_csv('/home/lab106/zy/MatTime/ctt.csv')
     # 重排数据
     df.sort_values("Dmax", inplace=True)
     df = df.reset_index(drop=True)
@@ -45,20 +45,50 @@ def read_data():
     scaler = MinMaxScaler(feature_range=(0, 1))
     # scaler = StandardScaler()
     df[features] = scaler.fit_transform(df[features])
-    # frame as supervised learning
-    reframed = series_to_supervised(df.loc[:, df.columns != 'Alloy'], 3, 1)
-    # drop columns we don't want to predict
-    reframed.drop(reframed.columns[[-2, -3, -4]], axis=1, inplace=True)
-    # reframed = df.loc[:, df.columns != 'Alloy'].dropna()
+
+    if reframe:
+        # frame as supervised learning
+        reframed = series_to_supervised(df.loc[:, df.columns != 'Alloy'], 3, 1)
+        # drop columns we don't want to predict
+        reframed.drop(reframed.columns[[-2, -3, -4]], axis=1, inplace=True)
+    else:
+        reframed = df.loc[:, df.columns != 'Alloy'].dropna()
+
     # print(reframed.head())
     return reframed
 
+class scaled_dot_product_attention(nn.Module):
+    def __init__(self, att_dropout=0.0):
+        super(scaled_dot_product_attention, self).__init__()
+        self.dropout = nn.Dropout(att_dropout)
+        self.softmax = nn.Softmax(dim=2)
+
+    def forward(self, q, k, v, scale=None):
+        '''
+        args:
+            q: [batch_size, q_length, q_dimension]
+            k: [batch_size, k_length, k_dimension]
+            v: [batch_size, v_length, v_dimension]
+            q_dimension = k_dimension = v_dimension
+            scale: 缩放因子
+        return:
+            context, attention
+        '''
+        # 快使用神奇的爱因斯坦求和约定吧！
+        attention = torch.einsum('ijk,ilk->ijl', [q, k])
+        if scale:
+            attention = attention * scale
+        attention = self.softmax(attention)
+        context = torch.einsum('ijl,ilk->ijk', [attention, v])
+        return context, attention
+        
+
 class Sequence(nn.Module):
-    def __init__(self):
+    def __init__(self, feature_num):
         super(Sequence, self).__init__()
-        self.lstm = nn.LSTM(input_size=12, hidden_size=256, num_layers=3)
-        self.gru = nn.GRU(input_size=12, hidden_size=256, num_layers=3)
-        self.rnn = nn.RNN(input_size=3, hidden_size=256, num_layers=3)
+        self.lstm = nn.LSTM(input_size=feature_num, hidden_size=256, num_layers=3)
+        self.gru = nn.GRU(input_size=feature_num, hidden_size=256, num_layers=3)
+        self.rnn = nn.RNN(input_size=feature_num, hidden_size=256, num_layers=3)
         self.linear = nn.Linear(256, 1)
 
     def forward(self, input, future = 0):
@@ -93,7 +123,7 @@ if __name__ == '__main__':
     # test_x = test_x.reshape((test_x.shape[0], 1, test_x.shape[1]))
     # print(train_x.shape, test_x.shape)
 
-    tscv = TimeSeriesSplit(n_splits=8)
+    tscv = TimeSeriesSplit(n_splits=5)
 
     for train_index, test_index in tscv.split(raw):
         # data processing
@@ -102,12 +132,14 @@ if __name__ == '__main__':
         train_x, train_y = train[:, :-1], train[:, -1]
         test_x, test_y = test[:, :-1], test[:, -1]
         # reshape input to be 3D [samples, timesteps, features]
-        train_x = train_x.reshape((train_x.shape[0], 1, train_x.shape[1]))
-        test_x = test_x.reshape((test_x.shape[0], 1, test_x.shape[1]))
+        # train_x = train_x.reshape((train_x.shape[0], 1, train_x.shape[1]))
+        # test_x = test_x.reshape((test_x.shape[0], 1, test_x.shape[1]))
+        train_x = train_x.reshape((-1, 2, train_x.shape[1]))
+        test_x = test_x.reshape((-1, 2, test_x.shape[1]))
         print(train_x.shape, test_x.shape)
 
         # build the model
-        seq = Sequence()
+        seq = Sequence(feature_num=12)
         seq.to(device)
         seq.double()
         criterion = nn.MSELoss()
