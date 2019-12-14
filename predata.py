@@ -3,14 +3,18 @@ import re
 import random
 from sklearn.preprocessing import MinMaxScaler
 
-def read_element(noise=False):
+def read_element(noise=False, rare_element_scaler=None):
     '''返回元素相对原子质量百分比特征与温度'''
     raw = pd.read_csv('/home/lab106/zy/MatTime/ctt_clean.csv')
     quality_table = pd.read_csv('/home/lab106/zy/MatTime/elements.csv')
-    features = pd.DataFrame(columns=['Tm', 'Yb', 'Ce', 'Au', 'Ca', 'Tb', 'Dy', 'Ho', 'Sm', 'Mg', 'Si', 'Pr', 'Fe',
-                            'Sc', 'P', 'Be', 'Er', 'Li', 'Co', 'Ag', 'Al', 'C', 'Nd', 'Pb', 'Nb', 'Gd',
-                            'Ta', 'Lu', 'W', 'Cu', 'Y', 'Mn', 'Sn', 'Cr', 'Ga', 'Pd', 'Hf', 'Ti', 'Zr',
-                            'La', 'Ni', 'B', 'Zn', 'In', 'Mo'])
+    features = pd.DataFrame(columns=['Tm', 'Yb', 'Ce', 'Au', 'Ca', 'Tb', 'Dy', 'Ho', 'Sm', 'Mg', 'Si', 
+                            'Pr', 'Fe','Sc', 'P', 'Be', 'Er', 'Li', 'Co', 'Ag', 'Al', 'C', 'Nd', 'Pb', 
+                            'Nb', 'Gd','Ta', 'Lu', 'W', 'Cu', 'Y', 'Mn', 'Sn', 'Cr', 'Ga', 'Pd', 'Hf', 
+                            'Ti', 'Zr','La', 'Ni', 'B', 'Zn', 'In', 'Mo'])
+    # 为稀有元素添加权重
+    if rare_element_scaler:
+        rare_element = ['Sc', 'Y', 'La', 'Ce', 'Pr', 'Nd', 'Sm', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu']
+        quality_table.loc[quality_table['element'].isin(rare_element), ['quality']] *= rare_element_scaler
 
     pattern = re.compile(r'([A-Z][a-z]*)([0-9]*\.*[0-9]*)')
     for item in raw['Alloy']:

@@ -8,8 +8,8 @@ from sklearn.model_selection import train_test_split
 class MLP(nn.Module):
     def __init__(self):
         super(MLP, self).__init__()
-        self.layer1 = nn.Linear(45, 128)
-        self.layer2 = nn.Linear(128, 128)
+        self.layer1 = nn.Linear(45, 256)
+        self.layer2 = nn.Linear(256, 128)
         self.layer3 = nn.Linear(128, 3)
 
     def forward(self, input):
@@ -20,7 +20,7 @@ class MLP(nn.Module):
         return output
 
 if __name__ == '__main__':
-    raw, _ = read_element(noise=True)
+    raw, _ = read_element(noise=False, rare_element_scaler=10)
 
     features = raw.iloc[:, :-3].values
     target = raw.iloc[:, -3:].values
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     criterion = nn.MSELoss()
     optimizer = optim.Adam(mlp.parameters())
 
-    epoch_num = 1000
+    epoch_num = 2000
 
     for epoch in range(epoch_num):
         def closure():
@@ -55,8 +55,9 @@ if __name__ == '__main__':
 
         optimizer.step(closure)
 
-        print('epoch : ', epoch)
-        pred = mlp(x_test)
-        loss = criterion(pred, y_test)
-        print('test loss:', loss.data.item())
-        print('r2:', r2_score(y_test.cpu(), pred.data.cpu()))
+        if epoch % 10 == 9:
+            print('epoch : ', epoch)
+            pred = mlp(x_test)
+            loss = criterion(pred, y_test)
+            print('test loss:', loss.data.item())
+            print('r2:', r2_score(y_test.cpu(), pred.data.cpu()))
