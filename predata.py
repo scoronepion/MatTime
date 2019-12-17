@@ -3,7 +3,7 @@ import re
 import random
 from sklearn.preprocessing import MinMaxScaler
 
-def read_element(noise=False, rare_element_scaler=None):
+def read_element(noise=False, sort=False, rare_element_scaler=None):
     '''返回元素相对原子质量百分比特征与温度'''
     raw = pd.read_csv('/home/lab106/zy/MatTime/ctt_clean.csv')
     quality_table = pd.read_csv('/home/lab106/zy/MatTime/elements.csv')
@@ -43,6 +43,8 @@ def read_element(noise=False, rare_element_scaler=None):
     if noise:
         features = features.applymap(lambda x: x + abs(random.gauss(0, 0.0001)))
 
+    features.dropna(inplace=True)
+
     Tg_scaler = MinMaxScaler()
     Tx_scaler = MinMaxScaler()
     Tl_scaler = MinMaxScaler()
@@ -54,9 +56,14 @@ def read_element(noise=False, rare_element_scaler=None):
     features['Tg'] = Tg_trans
     features['Tx'] = Tx_trans
     features['Tl'] = Tl_trans
+    features['Dmax'] = raw['Dmax']
+
+    if sort:
+        features.sort_values("Dmax", inplace=True)
+        features = features.reset_index(drop=True)
 
     print(features.head())
     return features.dropna(), (Tg_scaler, Tx_scaler, Tl_scaler)
 
 if __name__ == '__main__':
-    read_element(noise=True)
+    read_element(noise=True, sort=True)
