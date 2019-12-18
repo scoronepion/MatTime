@@ -7,6 +7,7 @@ from decimal import Decimal
 
 def read_data(path=None):
     raw = pd.read_csv(path)
+    quality_table = pd.read_csv('/home/lab106/zy/MatTime/elements.csv')
 
     conpisition_pattern = re.compile(r'([A-Z][a-z]*)([0-9]*\.*[0-9]*)')
     brackets_pattern = re.compile(r'(.*)\((.*)\)([0-9]*\.*[0-9]*)(.*)')
@@ -37,11 +38,43 @@ def read_data(path=None):
     for item in raw['Alloy']:
         details = {}
         result = conpisition_pattern.findall(item)
-        for elem in result:
-            if elem[1] != '':
-                details[elem[0]] = float(elem[1])
-            else:
-                details[elem[0]] = 1.0
+        # ------------- persent -----------------------
+        # # 求和
+        # sum = 0.0
+        # for elem in result:
+        #     if elem[1] != '':
+        #         sum += float(elem[1])
+        #     else:
+        #         sum += 1.0
+        # # 求百分比
+        # for elem in result:
+        #     if elem[1] != '':
+        #         details[elem[0]] = float(elem[1]) / sum
+        #     else:
+        #         details[elem[0]] = 1.0 / sum
+        # print(details)
+        # features = features.append(details, ignore_index=True)
+
+        print(result)
+        # 求元素质量总和
+        sum_quality = 0.0
+        for i in range(len(result)):
+            element = result[i][0]
+            num = result[i][1]
+            if num == '':
+                num = 1.0
+            temp_quality = float(quality_table[quality_table['element'] == element]['quality']) * float(num)
+            sum_quality += temp_quality
+        # 求各个元素质量百分比
+        details = {}
+        for i in range(len(result)):
+            element = result[i][0]
+            num = result[i][1]
+            if num == '':
+                num = 1.0
+            temp_quality = float(quality_table[quality_table['element'] == element]['quality']) * float(num)
+            percentage = temp_quality / sum_quality
+            details[element] = percentage
         print(details)
         features = features.append(details, ignore_index=True)
 

@@ -4,6 +4,7 @@ import torch.optim as optim
 import pickle
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 
 class scaled_dot_product_attention(nn.Module):
     def __init__(self, att_dropout=0.0):
@@ -82,19 +83,19 @@ class multi_heads_self_attention(nn.Module):
 if __name__ == '__main__':
     with open('/home/lab106/zy/MatTime/GFA_trans.pk', 'rb') as f:
         raw = pickle.load(f)
-    features = raw.iloc[:, :-3].values
-    target = raw.iloc[:, -3:].values
+    features = raw.iloc[:, :-4].values
+    target = raw.iloc[:, -1:].values
 
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     batch_size = 1
     features_size = 56
-    target_size = 3
+    # target_size = 3
 
     device = torch.device('cuda:0')
     x_train = torch.from_numpy(x_train).view(batch_size, -1, features_size).to(device)
     x_test = torch.from_numpy(x_test).view(batch_size, -1, features_size).to(device)
-    y_train = torch.from_numpy(y_train).view(batch_size, -1, target_size).long().to(device)
-    y_test = torch.from_numpy(y_test).view(batch_size, -1, target_size).long().to(device)
+    y_train = torch.from_numpy(y_train).view(batch_size, -1).long().to(device)
+    y_test = torch.from_numpy(y_test).view(batch_size, -1).long().to(device)
 
     multi_att = multi_heads_self_attention()
     multi_att.to(device)
@@ -117,9 +118,12 @@ if __name__ == '__main__':
 
         optimizer.step(closure)
 
-        if epoch % 10 == 9:
+        if epoch % 100 == 9:
             print('epoch : ', epoch)
             pred, _ = multi_att(x_test, x_test, x_test)
-            loss = criterion(pred, y_test)
+            loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
             print('test loss:', loss.data.item())
-            print('r2:', r2_score(torch.squeeze(y_test.cpu()), torch.squeeze(pred.data.cpu())))
+            pred = torch.topk(pred.data.cpu(), 1)[1].squeeze()
+            target_names = ['BMG', 'CRA', 'RMG']
+            # print('r2:', r2_score(torch.squeeze(y_test.cpu()), torch.squeeze(pred.data.cpu())))
+            print(classification_report(torch.squeeze(y_test.cpu()), pred, target_names=target_names))
