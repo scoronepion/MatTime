@@ -48,7 +48,7 @@ class multi_heads_self_attention(nn.Module):
         self.layer_norm = nn.LayerNorm(feature_dim)
         self.layer_softmax = nn.Linear(feature_dim, 3)
 
-    def forward(self, key, value, query, temperature):
+    def forward(self, key, value, query):
         residual = query
         batch_size = key.size(0)
 
@@ -73,8 +73,9 @@ class multi_heads_self_attention(nn.Module):
         # add residual and norm layer
         output = self.layer_norm(residual + output)
 
-        # pass through softmax
-        output = nn.functional.softmax(self.layer_softmax(output))
+        # pass through layer softmax
+        output = self.layer_softmax(output)
+        # output = nn.functional.softmax(output, dim=-1)
 
         return output, attention
 
@@ -92,6 +93,33 @@ if __name__ == '__main__':
     device = torch.device('cuda:0')
     x_train = torch.from_numpy(x_train).view(batch_size, -1, features_size).to(device)
     x_test = torch.from_numpy(x_test).view(batch_size, -1, features_size).to(device)
-    y_train = torch.from_numpy(y_train).view(batch_size, -1, target_size).to(device)
-    y_test = torch.from_numpy(y_test).view(batch_size, -1, target_size).to(device)
+    y_train = torch.from_numpy(y_train).view(batch_size, -1, target_size).long().to(device)
+    y_test = torch.from_numpy(y_test).view(batch_size, -1, target_size).long().to(device)
 
+    multi_att = multi_heads_self_attention()
+    multi_att.to(device)
+    multi_att.double()
+    # criterion = nn.MSELoss()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(multi_att.parameters())
+
+    epoch_num = 2000
+
+    for epoch in range(epoch_num):
+        def closure():
+            optimizer.zero_grad()
+            out, _ = multi_att(x_train, x_train, x_train)
+            loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
+            # print('loss:', loss.data.item())
+            # loss_list.append(loss.data.item())
+            loss.backward()
+            return loss
+
+        optimizer.step(closure)
+
+        if epoch % 10 == 9:
+            print('epoch : ', epoch)
+            pred, _ = multi_att(x_test, x_test, x_test)
+            loss = criterion(pred, y_test)
+            print('test loss:', loss.data.item())
+            print('r2:', r2_score(torch.squeeze(y_test.cpu()), torch.squeeze(pred.data.cpu())))

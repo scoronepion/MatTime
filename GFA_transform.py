@@ -49,8 +49,14 @@ def read_data(path=None):
     
     phase_onehot = pd.get_dummies(raw['Phase'])
     features = features.join(phase_onehot)
+    features['RMG'] = features['BMG'].astype(np.float64)
+    features['BMG'] = features['RMG'].astype(np.float64)
+    features['CRA'] = features['CRA'].astype(np.float64)
 
-    # features['Phase'] = raw['Phase']
+    features['Phase'] = raw['Phase']
+    features.loc[features['Phase'] == 'BMG', 'Phase'] = 0
+    features.loc[features['Phase'] == 'CRA', 'Phase'] = 1
+    features.loc[features['Phase'] == 'RMG', 'Phase'] = 2
 
     print(features.head())
     print(features.info())
