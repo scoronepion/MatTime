@@ -87,8 +87,8 @@ def read_data():
     print(features.head())
     print(features.info())
 
-    # with open('/home/lab106/zy/MatTime/GFA_trans.pk', 'wb') as f:
-    #     pickle.dump(features, f)
+    with open('/home/lab106/zy/MatTime/GFA_trans_enhance.pk', 'wb') as f:
+        pickle.dump(features, f)
 
     # raw.to_csv('/home/lab106/zy/MatTime/gfa_trans.csv', index=None)
 
