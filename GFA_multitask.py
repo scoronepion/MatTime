@@ -49,9 +49,9 @@ class multi_heads_self_attention(nn.Module):
         self.linear_attention = nn.Linear(feature_dim, feature_dim)
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(feature_dim)
-        # self.linear_1 = nn.Linear(feature_dim, 256)
+        self.linear_1 = nn.Linear(feature_dim, 256)
         # self.linear_2 = nn.Linear(256, feature_dim)
-        # self.layer_final = nn.Linear(feature_dim, 3)
+        self.layer_final = nn.Linear(256, 1)
 
     def forward(self, key, value, query):
         residual = query
@@ -78,12 +78,12 @@ class multi_heads_self_attention(nn.Module):
         # add residual and norm layer
         output = self.layer_norm(residual + output)
 
-        # # pass through linear
-        # output = nn.functional.relu(self.linear_1(output))
+        # pass through linear
+        output = nn.functional.relu(self.linear_1(output))
         # output = nn.functional.relu(self.linear_2(output))
 
-        # # pass through layer final
-        # output = self.layer_final(output)
+        # pass through layer final
+        output = self.layer_final(output)
 
         return output, attention
 
@@ -179,7 +179,7 @@ class MultiLossLayer(nn.Module):
 class gfa_multitask(nn.Module):
     def __init__(self):
         super(gfa_multitask, self).__init__()
-        self.regressor = mlp_regressor()
+        self.regressor = multi_heads_self_attention()
         self.classifier = mlp_classifier()
         self.Layer_multi_loss = MultiLossLayer(2)
         self.classifier_loss = nn.CrossEntropyLoss()
@@ -187,12 +187,12 @@ class gfa_multitask(nn.Module):
 
     def forward(self, x_cla, y_cla, x_reg, y_reg):
         output_cla = self.classifier(x_cla)
-        output_reg = self.regressor(x_reg)
+        output_reg, _ = self.regressor(x_reg, x_reg, x_reg)
         loss_cla = self.classifier_loss(torch.squeeze(output_cla), torch.squeeze(y_cla))
         loss_reg = self.regressor_loss(torch.squeeze(output_reg), torch.squeeze(y_reg))
         multi_loss = self.Layer_multi_loss(loss_reg, loss_cla)
 
-        return multi_loss
+        return multi_loss, loss_cla, loss_reg, output_cla, output_reg
 
 if __name__ == '__main__':
     with open('/home/lab106/zy/MatTime/GFA_trans_enhance.pk', 'rb') as f:
@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
     x_train_cla, x_test_cla, y_train_cla, y_test_cla = train_test_split(features, target_phase, test_size=0.4)
     x_train_reg, x_test_reg, y_train_reg, y_test_reg = train_test_split(features, target_dmax, test_size=0.4)
-    batch_size = 1
+    batch_size = 1  
     features_size = 56
     # target_size = 3
 
@@ -227,14 +227,19 @@ if __name__ == '__main__':
     multitask.double()
 
     # criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(multitask.parameters(), lr=0.0001)
+    params = [
+        {'params': multitask.Layer_multi_loss.parameters(), 'lr': 0.0001},
+        {'params': multitask.regressor.parameters(), 'lr': 0.0001},
+        {'params': multitask.classifier.parameters(), 'lr': 0.000001}
+    ]
+    optimizer = optim.Adam(params)
 
     epoch_num = 100000
 
     for epoch in range(epoch_num):
         def closure():
             optimizer.zero_grad()
-            loss = multitask(x_train_cla, y_train_cla, x_train_reg, y_train_reg)
+            loss, _, _, _, _ = multitask(x_train_cla, y_train_cla, x_train_reg, y_train_reg)
             # loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
             # print('loss:', loss.data.item())
             # loss_list.append(loss.data.item())
@@ -245,23 +250,26 @@ if __name__ == '__main__':
 
         if epoch % 100 == 99:
             print('epoch : ', epoch)
-            loss = multitask(x_test_cla, y_test_cla, x_test_reg, y_test_reg)
+            loss, loss_cla, loss_reg, output_cla, output_reg = multitask(x_test_cla, y_test_cla, x_test_reg, y_test_reg)
             # loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
-            print('test loss:', loss.data.item())
-            # pred = torch.topk(pred.data.cpu(), 1)[1].squeeze()
+            print('test multi loss:', loss.data.item())
+            print('test classification loss:', loss_cla.data.item())
+            print('test regression loss:', loss_reg.data.item())
+            pred = torch.topk(output_cla.data.cpu(), 1)[1].squeeze()
 
             # # 参考 focal loss
-            # focus_param = 1
-            # target_names = ['BMG', 'CRA', 'RMG']
-            # pro_list = f1_score(torch.squeeze(y_test.cpu()), pred, average=None)
+            # focus_param = 2
+            target_names = ['BMG', 'CRA', 'RMG']
+            # pro_list = f1_score(torch.squeeze(y_test_cla.cpu()), pred, average=None)
             # BMG_weight = (2 - pro_list[0]) ** focus_param
-            # CRA_weight = 7 * (2 - pro_list[1]) ** focus_param
-            # RMG_weight = 6 * (2 - pro_list[2]) ** focus_param
+            # CRA_weight = (2 - pro_list[1]) ** focus_param
+            # RMG_weight = (2 - pro_list[2]) ** focus_param
             # # BMG_weight = math.e ** (1 - pro_list[0])
             # # CRA_weight = math.e ** (1 - pro_list[0]) + 1
             # # RMG_weight = math.e ** (1 - pro_list[0])
             # # BMG_weight = 1
             # # RMG_weight = 1
             # weight = torch.tensor([BMG_weight, CRA_weight, RMG_weight], dtype=torch.float64).to(device)
-            # criterion.weight = weight
-            # print(classification_report(torch.squeeze(y_test.cpu()), pred, target_names=target_names))
+            # multitask.classifier_loss.weight = weight
+            print(classification_report(torch.squeeze(y_test_cla.cpu()), pred, target_names=target_names, digits=4))
+            print('r2:', r2_score(torch.squeeze(y_test_reg.cpu()), torch.squeeze(output_reg.data.cpu())))
