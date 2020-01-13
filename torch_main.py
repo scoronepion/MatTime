@@ -35,7 +35,10 @@ def series_to_supervised(df, n_in=1, n_out=1, dropnan=True):
 	return agg
 
 def read_data(reframe=True):
-    df = pd.read_csv('/home/lab106/zy/MatTime/ctt.csv')
+    if torch.cuda.is_available():
+        df = pd.read_csv('/home/lab106/zy/MatTime/ctt.csv')
+    else:
+        df = pd.read_csv('ctt.csv')
     # 重排数据
     df.sort_values("Dmax", inplace=True)
     df = df.reset_index(drop=True)
@@ -155,7 +158,8 @@ if __name__ == '__main__':
     raw = read_data().values
     train_size = int(raw.shape[0] * 0.8)
 
-    device = torch.device('cuda:0')
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
 
     # train = torch.from_numpy(raw[:train_size, :]).to(device)
     # test = torch.from_numpy(raw[train_size:, :]).to(device)
@@ -166,24 +170,29 @@ if __name__ == '__main__':
     # test_x = test_x.reshape((test_x.shape[0], 1, test_x.shape[1]))
     # print(train_x.shape, test_x.shape)
 
-    tscv = TimeSeriesSplit(n_splits=5)
+    tscv = TimeSeriesSplit(n_splits=4)
 
     for train_index, test_index in tscv.split(raw):
         # data processing
-        train = torch.from_numpy(raw[train_index, :]).to(device)
-        test = torch.from_numpy(raw[test_index, :]).to(device)
+        if torch.cuda.is_available():
+            train = torch.from_numpy(raw[train_index, :]).to(device)
+            test = torch.from_numpy(raw[test_index, :]).to(device)
+        else:
+            train = torch.from_numpy(raw[train_index, :])
+            test = torch.from_numpy(raw[test_index, :])
         train_x, train_y = train[:, :-1], train[:, -1]
         test_x, test_y = test[:, :-1], test[:, -1]
         # reshape input to be 3D [samples, timesteps, features]
         # train_x = train_x.reshape((train_x.shape[0], 1, train_x.shape[1]))
         # test_x = test_x.reshape((test_x.shape[0], 1, test_x.shape[1]))
-        train_x = train_x.reshape((-1, 2, train_x.shape[1]))
-        test_x = test_x.reshape((-1, 2, test_x.shape[1]))
+        train_x = train_x.reshape((-1, 1, train_x.shape[1]))
+        test_x = test_x.reshape((-1, 1, test_x.shape[1]))
         print(train_x.shape, test_x.shape)
 
         # build the model
         seq = Sequence(feature_num=12)
-        seq.to(device)
+        if torch.cuda.is_available():
+            seq.to(device)
         seq.double()
         criterion = nn.MSELoss()
         # use LBFGS as optimizer since we can load the whole data to train
@@ -200,7 +209,8 @@ if __name__ == '__main__':
             def closure():
                 optimizer.zero_grad()
                 out = seq(train_x)
-                loss = criterion(out, train_y)
+                loss = criterion(torch.squeeze(out), torch.squeeze(train_y))
+                # loss = criterion(out, train_y)
                 # print('loss:', loss.data.numpy())
                 loss_list.append(loss.data.item())
                 loss.backward()
@@ -213,4 +223,7 @@ if __name__ == '__main__':
                 pred = seq(test_x)
                 loss = criterion(pred, test_y)
                 print('test loss:', loss.data.item())
-                print('r2:', r2_score(test_y.cpu(), pred.data.cpu()))
+                if torch.cuda.is_available():
+                    print('r2:', r2_score(test_y.cpu(), pred.data.cpu()))
+                else:
+                    print("r2 : ", r2_score(torch.squeeze(test_y).detach().numpy(), torch.squeeze(pred).detach().numpy()))
