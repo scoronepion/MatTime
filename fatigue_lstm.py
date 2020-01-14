@@ -1,3 +1,4 @@
+import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -32,26 +33,27 @@ def series_to_supervised(df, n_in=1, n_out=1, dropnan=True):
 
 def read_data(reframe=True, platform=None):
     if platform == 'v100':
-        df = pd.read_csv('/home/lab106/zy/MatTime/ctt.csv')
+        df = pd.read_csv('/home/lab106/zy/MatTime/fatigue.csv')
     else:
-        df = pd.read_csv('ctt.csv')
+        df = pd.read_csv('fatigue.csv')
+    df.drop(columns=['dA', 'dB', 'dC'], inplace=True)
     # 重排数据
-    df.sort_values("Dmax", inplace=True)
+    df.sort_values("Fatigue", inplace=True)
     df = df.reset_index(drop=True)
-    df.drop(df.index[[-1]], inplace=True)
-    features = ['Tg', 'Tx', 'Tl', 'Dmax']
-    df[features] += random.gauss(0, 1)
+    # features = ['RedRatio', 'dA', 'dB', 'dC', 'Fatigue']
+    features = ['RedRatio', 'Fatigue']
+    # df[features] += random.gauss(0, 1)
     scaler = MinMaxScaler(feature_range=(0, 1))
     # scaler = StandardScaler()
     df[features] = scaler.fit_transform(df[features])
 
     if reframe:
         # frame as supervised learning
-        reframed = series_to_supervised(df.loc[:, df.columns != 'Alloy'], 3, 1)
-        # drop columns we don't want to predict
-        reframed.drop(reframed.columns[[-2, -3, -4]], axis=1, inplace=True)
+        # reframed = series_to_supervised(df.loc[:, df.columns != 'Alloy'], 3, 1)
+        reframed = series_to_supervised(df, 3, 1)
     else:
-        reframed = df.loc[:, df.columns != 'Alloy'].dropna()
+        # reframed = df.loc[:, df.columns != 'Alloy'].dropna()
+        reframed = df.dropna()
 
     # print(reframed.head())
     return reframed
@@ -156,10 +158,14 @@ class AT_LSTM(nn.Module):
         return output
 
 if __name__ == '__main__':
+    # f = open('0114.log', 'a')
+    # sys.stdout = f
+    # sys.stderr = f
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
 
     print(read_data(reframe=True).head())
+    print(read_data(reframe=True).info())
     raw = read_data(reframe=True).values
     raw = np.expand_dims(raw, axis=1)
     train_size = int(raw.shape[0] * 0.8)
@@ -179,14 +185,14 @@ if __name__ == '__main__':
     print(test_x.shape)
     print(test_y.shape)
 
-    at_lstm = AT_LSTM(feature_dim=train.size()[-1]-1, hidden_size=64, head_num=4)
+    at_lstm = AT_LSTM(feature_dim=train.size()[-1]-1, hidden_size=256, head_num=1)
     if torch.cuda.is_available():
         at_lstm.to(device)
     at_lstm.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(at_lstm.parameters(), lr=0.001)
 
-    epoch_num = 5000
+    epoch_num = 10000
 
     for epoch in range(epoch_num):
         def closure():
@@ -204,3 +210,5 @@ if __name__ == '__main__':
             loss = criterion(torch.squeeze(pred), torch.squeeze(test_y))
             print("test loss : ", loss.data.item())
             print("r2 : ", r2_score(torch.squeeze(test_y).detach().numpy(), torch.squeeze(pred).detach().numpy()))
+
+    # f.close()
