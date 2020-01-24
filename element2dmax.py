@@ -144,8 +144,11 @@ class embedding_attention(nn.Module):
         # self.linear1 = nn.Linear(length * embedding_size, hidden_size)
         self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
         self.layer_norm = nn.LayerNorm(length * embedding_size)
-        # self.linear2 = nn.Linear(hidden_size, 128)
-        self.linear_final = nn.Linear(length * embedding_size, 1)
+        self.linear1 = nn.Linear(length * embedding_size, 512)
+        self.linear2 = nn.Linear(512, 256)
+        self.linear3 = nn.Linear(256, 128)
+        self.linear_final = nn.Linear(128, 1)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, input):
         embed = self.embedding(input)
@@ -153,7 +156,11 @@ class embedding_attention(nn.Module):
         # output = nn.functional.relu(self.linear2(output))
         output, _ = self.attention(embed, embed, embed)
         output = self.layer_norm(output)
-        # output = nn.functional.relu(self.linear2(output))
+        output = nn.functional.relu(self.linear1(output))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear2(output))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear3(output))
         output = self.linear_final(output)
 
         return output
@@ -180,7 +187,7 @@ if __name__ == '__main__':
     model = embedding_attention(length=56, embedding_size=5, hidden_size=128)
     model.double()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     epoch_num = 20000
 
