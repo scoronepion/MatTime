@@ -194,7 +194,7 @@ if __name__ == '__main__':
             out = at_lstm(train_x)
             loss = criterion(torch.squeeze(out), torch.squeeze(train_y))
             loss.backward()
-            return loss
+            return loss 
 
         optimizer.step(closure)
 
