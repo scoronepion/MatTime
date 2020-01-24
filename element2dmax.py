@@ -149,9 +149,9 @@ class embedding_attention(nn.Module):
 
     def forward(self, input):
         embed = self.embedding(input)
-        output = nn.functional.relu(self.linear1(embed))
-        output = nn.functional.relu(self.linear2(output))
-        output, _ = self.attention(output, output, output)
+        # output = nn.functional.relu(self.linear1(embed))
+        # output = nn.functional.relu(self.linear2(output))
+        output, _ = self.attention(embed, embed, embed)
         output = self.layer_norm(output)
         # output = nn.functional.relu(self.linear2(output))
         output = self.linear_final(output)
