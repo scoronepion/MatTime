@@ -65,6 +65,9 @@ class cross_mlp(nn.Module):
         return output
 
 if __name__ == '__main__':
+    f = open('0127.log', 'a')
+    sys.stdout = f
+    sys.stderr = f
     raw = read_element().values
     features = raw[:, :-1]
     target = raw[:, -1:]
@@ -80,7 +83,7 @@ if __name__ == '__main__':
     model = cross_mlp(input_dim=56, output_dim=56)
     model.double()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     epoch_num = 20000
 
@@ -104,4 +107,4 @@ if __name__ == '__main__':
             print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
             # print('weight: ', model.embedding.embedding.weight)
 
-    # f.close()
+    f.close()
