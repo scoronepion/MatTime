@@ -97,7 +97,7 @@ class multi_heads_self_attention(nn.Module):
 
         output = self.linear_attention(context)
         output = self.dropout(output)
-        output = torch.squeeze(output)
+        # output = torch.squeeze(output)
 
         # add residual and norm layer
         output = self.layer_norm(residual + output)
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     features = raw[:, :-1]
     target = raw[:, -1:]
-    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.99)
     print(x_train.shape)
     print(x_test.shape)
 
