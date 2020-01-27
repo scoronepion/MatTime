@@ -160,7 +160,8 @@ class cross_attention(nn.Module):
         self.cross3 = cross_layer(input_dim)
         self.cross4 = cross_layer(input_dim)
         self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=2)
-        self.final_linear = nn.Linear(input_dim * 2, 1)
+        self.linear1 = nn.Linear(input_dim * 2, 256)
+        self.final_linear = nn.Linear(256, 1)
 
     def forward(self, input):
         cross_out = self.cross1(input, input)
@@ -169,7 +170,8 @@ class cross_attention(nn.Module):
         cross_out = self.cross4(input, cross_out)
         attention_out, _ = self.attention_layer(input, input, input)
         cat_res = torch.cat((cross_out, attention_out), dim=-1)
-        output = self.final_linear(cat_res)
+        output = nn.functional.relu(self.linear1(cat_res))
+        output = self.final_linear(output)
 
         return output
 
@@ -209,7 +211,7 @@ if __name__ == '__main__':
     y_train = torch.from_numpy(y_train)
     y_test = torch.from_numpy(y_test)
 
-    model = cross_mlp(input_dim=56, output_dim=56)
+    model = cross_attention(input_dim=56)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
