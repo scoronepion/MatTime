@@ -97,6 +97,7 @@ class multi_heads_self_attention(nn.Module):
 
         output = self.linear_attention(context)
         output = self.dropout(output)
+        output = torch.squeeze(output)
 
         # add residual and norm layer
         output = self.layer_norm(residual + output)
