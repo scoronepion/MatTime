@@ -166,6 +166,20 @@ class embedding_attention(nn.Module):
 
         return output
 
+class pure_embedding(nn.Module):
+    def __init__(self, length, embedding_size):
+        super(pure_embedding, self).__init__()
+        self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
+        self.linear = nn.Linear(length * embedding_size, 512)
+        self.linear_final = nn.Linear(512, 1)
+
+    def forward(self, input):
+        embed = self.embedding(input)
+        output = nn.functional.relu(self.linear(embed))
+        output = self.linear_final(output)
+
+        return output
+
 
 if __name__ == '__main__':
     # f = open('0122.log', 'a')
@@ -185,7 +199,7 @@ if __name__ == '__main__':
     y_train = torch.from_numpy(y_train)
     y_test = torch.from_numpy(y_test)
 
-    model = embedding_attention(length=56, embedding_size=5, hidden_size=128)
+    model = pure_embedding(length=56, embedding_size=5)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
