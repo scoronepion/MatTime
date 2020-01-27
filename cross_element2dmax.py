@@ -173,6 +173,26 @@ class cross_attention(nn.Module):
 
         return output
 
+class pure_cross(nn.Module):
+    def __init__(self, input_dim):
+        super(pure_cross, self).__init__()
+        self.cross1 = cross_layer(input_dim)
+        self.cross2 = cross_layer(input_dim)
+        self.cross3 = cross_layer(input_dim)
+        self.cross4 = cross_layer(input_dim)
+        self.linear1 = nn.Linear(input_dim, 256)
+        self.linear2 = nn.Linear(256, 1)
+
+    def forward(self, input):
+        cross_out = self.cross1(input, input)
+        cross_out = self.cross2(input, cross_out)
+        cross_out = self.cross3(input, cross_out)
+        cross_out = self.cross4(input, cross_out)
+        output = nn.functional.relu(self.linear1(cross_out))
+        output = self.linear2(output)
+
+        return output
+
 if __name__ == '__main__':
     # f = open('0127.log', 'a')
     # sys.stdout = f
@@ -189,7 +209,7 @@ if __name__ == '__main__':
     y_train = torch.from_numpy(y_train)
     y_test = torch.from_numpy(y_test)
 
-    model = cross_attention(input_dim=56)
+    model = cross_mlp(input_dim=56, output_dim=56)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
