@@ -30,7 +30,7 @@ class mlp(nn.Module):
         self.linear2 = nn.Linear(256, 512)
         self.linear3 = nn.Linear(512, 256)
         self.linear4 = nn.Linear(256, output_dim)
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, input):
         output = nn.functional.relu(self.linear1(input))
@@ -55,7 +55,7 @@ class cross_mlp(nn.Module):
         self.linear1 = nn.Linear(input_dim + output_dim, 128)
         self.linear2 = nn.Linear(128, 256)
         self.linear3 = nn.Linear(256, 1)
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, input):
         cross_out = self.cross1(input, input)
