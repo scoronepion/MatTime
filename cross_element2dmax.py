@@ -51,7 +51,11 @@ class cross_mlp(nn.Module):
         self.cross3 = cross_layer(input_dim)
         self.cross4 = cross_layer(input_dim)
         self.mlp = mlp(input_dim, output_dim)
-        self.final_linear = nn.Linear(input_dim + output_dim, 1)
+        # self.final_linear = nn.Linear(input_dim + output_dim, 1)
+        self.linear1 = nn.Linear(input_dim + output_dim, 128)
+        self.linear2 = nn.Linear(128, 256)
+        self.linear3 = nn.Linear(256, 1)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, input):
         cross_out = self.cross1(input, input)
@@ -60,14 +64,19 @@ class cross_mlp(nn.Module):
         cross_out = self.cross4(input, cross_out)
         mlp_out = self.mlp(input)
         cat_res = torch.cat((cross_out, mlp_out), dim=-1)
-        output = self.final_linear(cat_res)
+        # output = self.final_linear(cat_res)
+        output = nn.functional.relu(self.linear1(cat_res))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear2(output))
+        output = self.dropout(output)
+        output = self.linear3(output)
 
         return output
 
 if __name__ == '__main__':
-    f = open('0127.log', 'a')
-    sys.stdout = f
-    sys.stderr = f
+    # f = open('0127.log', 'a')
+    # sys.stdout = f
+    # sys.stderr = f
     raw = read_element().values
     features = raw[:, :-1]
     target = raw[:, -1:]
@@ -107,4 +116,4 @@ if __name__ == '__main__':
             print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
             # print('weight: ', model.embedding.embedding.weight)
 
-    f.close()
+    # f.close()
