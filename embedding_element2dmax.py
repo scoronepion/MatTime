@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     features = raw[:, :-1]
     target = raw[:, -1:]
-    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.99)
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print(x_train.shape)
     print(x_test.shape)
 
