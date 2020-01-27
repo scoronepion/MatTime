@@ -133,7 +133,7 @@ class cross_mlp(nn.Module):
         # self.final_linear = nn.Linear(input_dim + output_dim, 1)
         self.linear1 = nn.Linear(input_dim + output_dim, 128)
         self.linear2 = nn.Linear(128, 256)
-        self.linear3 = nn.Linear(256, 1)
+        self.linear3 = nn.Linear(128, 1)
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, input):
@@ -145,8 +145,8 @@ class cross_mlp(nn.Module):
         cat_res = torch.cat((cross_out, mlp_out), dim=-1)
         # output = self.final_linear(cat_res)
         output = nn.functional.relu(self.linear1(cat_res))
-        output = self.dropout(output)
-        output = nn.functional.relu(self.linear2(output))
+        # output = self.dropout(output)
+        # output = nn.functional.relu(self.linear2(output))
         output = self.dropout(output)
         output = self.linear3(output)
 
