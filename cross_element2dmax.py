@@ -220,6 +220,31 @@ class pure_cross(nn.Module):
 
         return output
 
+class cross_mlp_attention(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(cross_mlp_attention, self).__init__()
+        self.cross1 = cross_layer(input_dim)
+        self.cross2 = cross_layer(input_dim)
+        self.cross3 = cross_layer(input_dim)
+        self.cross4 = cross_layer(input_dim)
+        self.mlp = mlp(input_dim, output_dim)
+        self.attention = multi_heads_self_attention(feature_dim=input_dim + output_dim, num_heads=2)
+        self.linear = nn.Linear(input_dim + output_dim, 256)
+        self.final_linear = nn.Linear(256, 1)
+
+    def forward(self, input):
+        cross_out = self.cross1(input, input)
+        cross_out = self.cross2(input, cross_out)
+        cross_out = self.cross3(input, cross_out)
+        cross_out = self.cross4(input, cross_out)
+        mlp_out = self.mlp(input)
+        cat_res = torch.cat((cross_out, mlp_out), dim=-1)
+        output, _ = self.attention(cat_res, cat_res, cat_res)
+        output = nn.functional.relu(self.linear(output))
+        output = self.final_linear(output)
+
+        return output
+
 if __name__ == '__main__':
     # f = open('0127.log', 'a')
     # sys.stdout = f
@@ -236,7 +261,7 @@ if __name__ == '__main__':
     y_train = torch.from_numpy(y_train)
     y_test = torch.from_numpy(y_test)
 
-    model = cross_attention_attention(input_dim=56)
+    model = cross_mlp_attention(input_dim=56, output_dim=56)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
