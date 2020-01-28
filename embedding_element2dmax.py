@@ -17,11 +17,19 @@ class chemical_embedding(nn.Module):
         self.embedding = nn.Embedding(length, embedding_size)
 
     def forward(self, input):
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
         index = np.tile([i for i in range(self.length)], (input.size(0), 1))
-        index = torch.tensor(index, dtype=torch.long)
+        if torch.cuda.is_available():
+            index = torch.tensor(index, dtype=torch.long).to(device)
+        else:
+            index = torch.tensor(index, dtype=torch.long)
         embed = self.embedding(index).view(-1)
         # 输入变换
-        trans = torch.zeros(self.length, self.length * self.embedding_size, dtype=torch.float64)
+        if torch.cuda.is_available():
+            trans = torch.zeros(self.length, self.length * self.embedding_size, dtype=torch.float64).to(device)
+        else:
+            trans = torch.zeros(self.length, self.length * self.embedding_size, dtype=torch.float64)
         flag = 0
         for i in range(self.length):
             for j in range(self.embedding_size):
