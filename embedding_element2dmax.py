@@ -40,6 +40,21 @@ class chemical_embedding(nn.Module):
 
         return result
 
+class cross_layer(nn.Module):
+    def __init__(self, input_dim):
+        super(cross_layer, self).__init__()
+        self.w = nn.Parameter(torch.empty((input_dim)))
+        self.b = nn.Parameter(torch.empty((input_dim)))
+
+        for p in self.parameters():
+            nn.init.uniform_(p, 0.2, 1)
+
+    def forward(self, x0, x):
+        trans = torch.einsum('bi,i->b', [x, self.w])
+        x_trans = torch.einsum('bi,b->bi', [x0, trans])
+
+        return x_trans + self.b + x
+
 class scaled_dot_product_attention(nn.Module):
     def __init__(self, att_dropout=0.0):
         super(scaled_dot_product_attention, self).__init__()
@@ -145,7 +160,7 @@ class embedding_attention(nn.Module):
         super(embedding_attention, self).__init__()
         self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
         self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
-        self.layer_norm = nn.LayerNorm(length * embedding_size)
+        # self.layer_norm = nn.LayerNorm(length * embedding_size)
         # self.linear1 = nn.Linear(length * embedding_size, 512)
         # self.linear2 = nn.Linear(512, 256)
         # self.linear3 = nn.Linear(256, 128)
@@ -204,6 +219,28 @@ class pure_embedding(nn.Module):
 
         return output
 
+class embedding_attention_cross(nn.Module):
+    def __init__(self, length, embedding_size):
+        super(embedding_attention_cross, self).__init__()
+        self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
+        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
+        self.cross1 = cross_layer(length * embedding_size)
+        self.cross2 = cross_layer(length * embedding_size)
+        self.cross3 = cross_layer(length * embedding_size)
+        self.cross4 = cross_layer(length * embedding_size)
+        self.linear_final = nn.Linear(length * embedding_size, 1)
+
+    def forward(self, input):
+        embed = self.embedding(input)
+        att_out, _ = self.attention(embed, embed, embed)
+        output = self.cross1(att_out, att_out)
+        output = self.cross2(att_out, output)
+        output = self.cross3(att_out, output)
+        output = self.cross4(att_out, output)
+        output = self.linear_final(output)
+
+        return output
+
 
 if __name__ == '__main__':
     # f = open('0122.log', 'a')
@@ -231,7 +268,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = embedding_attention_mlp(length=56, embedding_size=5)
+    model = embedding_attention_cross(length=56, embedding_size=5)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
