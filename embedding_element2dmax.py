@@ -145,7 +145,7 @@ class embedding_attention(nn.Module):
         super(embedding_attention, self).__init__()
         self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
         self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
-        # self.layer_norm = nn.LayerNorm(length * embedding_size)
+        self.layer_norm = nn.LayerNorm(length * embedding_size)
         # self.linear1 = nn.Linear(length * embedding_size, 512)
         # self.linear2 = nn.Linear(512, 256)
         # self.linear3 = nn.Linear(256, 128)
@@ -161,6 +161,31 @@ class embedding_attention(nn.Module):
         # output = nn.functional.relu(self.linear2(output))
         # output = self.dropout(output)
         # output = nn.functional.relu(self.linear3(output))
+        output = self.linear_final(output)
+
+        return output
+
+class embedding_attention_mlp(nn.Module):
+    def __init__(self, length, embedding_size):
+        super(embedding_attention_mlp, self).__init__()
+        self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
+        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
+        self.layer_norm = nn.LayerNorm(length * embedding_size)
+        self.linear1 = nn.Linear(length * embedding_size, 512)
+        self.linear2 = nn.Linear(512, 256)
+        self.linear3 = nn.Linear(256, 128)
+        self.linear_final = nn.Linear(128, 1)
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, input):
+        embed = self.embedding(input)
+        output, _ = self.attention(embed, embed, embed)
+        output = self.layer_norm(output)
+        output = nn.functional.relu(self.linear1(output))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear2(output))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear3(output))
         output = self.linear_final(output)
 
         return output
@@ -206,7 +231,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = embedding_attention(length=56, embedding_size=5)
+    model = embedding_attention_mlp(length=56, embedding_size=5)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
