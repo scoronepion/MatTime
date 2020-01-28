@@ -238,7 +238,10 @@ if __name__ == '__main__':
             pred = model(x_test)
             loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
             print('test loss:', loss.data.item())
-            print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
+            if torch.cuda.is_available():
+                print('r2:', r2_score(torch.squeeze(y_test.cpu()), torch.squeeze(pred).detach().numpy()))
+            else:
+                print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
             # print('weight: ', model.embedding.embedding.weight)
 
     # f.close()
