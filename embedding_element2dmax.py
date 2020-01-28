@@ -233,6 +233,7 @@ class embedding_attention_cross(nn.Module):
     def forward(self, input):
         embed = self.embedding(input)
         att_out, _ = self.attention(embed, embed, embed)
+        att_out = torch.squeeze(att_out)
         output = self.cross1(att_out, att_out)
         output = self.cross2(att_out, output)
         output = self.cross3(att_out, output)
