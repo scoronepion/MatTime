@@ -119,8 +119,7 @@ class embedding_mlp(nn.Module):
         self.linear1 = nn.Linear(length * embedding_size, 256)
         self.linear2 = nn.Linear(256, 512)
         self.linera3 = nn.Linear(512, 256)
-        self.linear4 = nn.Linear(256, 128)
-        self.linear5 = nn.Linear(128, 1)
+        self.linear4 = nn.Linear(256, 1)
 
     def forward(self, input):
         embed = self.embedding(input)
@@ -129,9 +128,7 @@ class embedding_mlp(nn.Module):
         output = nn.functional.relu(self.linear2(output))
         output = self.dropout(output)
         output = nn.functional.relu(self.linera3(output))
-        output = self.dropout(output)
         output = self.linear4(output)
-        output = self.linear5(output)
 
         return output
 
@@ -199,7 +196,7 @@ if __name__ == '__main__':
     y_train = torch.from_numpy(y_train)
     y_test = torch.from_numpy(y_test)
 
-    model = pure_embedding(length=56, embedding_size=5)
+    model = embedding_mlp(length=56, embedding_size=5)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
