@@ -182,6 +182,8 @@ if __name__ == '__main__':
     # f = open('0122.log', 'a')
     # sys.stdout = f
     # sys.stderr = f
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
     raw = read_element().values
     # raw = np.expand_dims(raw, axis=1)
 
@@ -191,12 +193,20 @@ if __name__ == '__main__':
     print(x_train.shape)
     print(x_test.shape)
 
-    x_train = torch.from_numpy(x_train)
-    x_test = torch.from_numpy(x_test)
-    y_train = torch.from_numpy(y_train)
-    y_test = torch.from_numpy(y_test)
+    if torch.cuda.is_available():
+        x_train = torch.from_numpy(x_train).to(device)
+        x_test = torch.from_numpy(x_test).to(device)
+        y_train = torch.from_numpy(y_train).to(device)
+        y_test = torch.from_numpy(y_test).to(device)
+    else:
+        x_train = torch.from_numpy(x_train)
+        x_test = torch.from_numpy(x_test)
+        y_train = torch.from_numpy(y_train)
+        y_test = torch.from_numpy(y_test)
 
     model = embedding_mlp(length=56, embedding_size=5)
+    if torch.cuda.is_available():
+        model.to(device)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
