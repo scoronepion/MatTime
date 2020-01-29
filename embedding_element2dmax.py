@@ -6,6 +6,7 @@ import sys
 from big_predata import read_element
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
+from torch.utils.tensorboard import SummaryWriter
 
 class chemical_embedding(nn.Module):
     '''返回元素 embedding 表示'''
@@ -266,6 +267,7 @@ if __name__ == '__main__':
     # sys.stderr = f
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
+    writer = SummaryWriter('./logs/')
     raw = read_element().values
     # raw = np.expand_dims(raw, axis=1)
 
@@ -286,20 +288,21 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = embedding_attention(length=56, embedding_size=10)
+    model = embedding_attention(length=56, embedding_size=5)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    epoch_num = 20000
+    epoch_num = 20
 
     for epoch in range(epoch_num):
         def closure():
             optimizer.zero_grad()
             out = model(x_train)
             loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
+            writer.add_scalar('Loss/train', loss.data.item(), epoch)
             # print('loss:', loss.data.item())
             # loss_list.append(loss.data.item())
             loss.backward()
@@ -311,11 +314,16 @@ if __name__ == '__main__':
             print('epoch : ', epoch)
             pred = model(x_test)
             loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
+            writer.add_scalar('Loss/test', loss.data.item(), epoch)
             print('test loss:', loss.data.item())
             if torch.cuda.is_available():
-                print('r2:', r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy()))
+                r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
+                writer.add_scalar('R2', r2, epoch)
+                print('r2:', r2)
             else:
-                print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
+                r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
+                writer.add_scalar('R2', r2, epoch)
+                print('r2:', r2)
             # print('weight: ', model.embedding.embedding.weight)
 
     # f.close()
