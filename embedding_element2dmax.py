@@ -180,6 +180,23 @@ class embedding_attention(nn.Module):
 
         return output
 
+class embedding_attention_attention(nn.Module):
+    def __init__(self, length, embedding_size):
+        super(embedding_attention_attention, self).__init__()
+        self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
+        self.attention1 = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
+        self.attention2 = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
+        self.linear_final = nn.Linear(length * embedding_size, 1)
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, input):
+        embed = self.embedding(input)
+        output, _ = self.attention1(embed, embed, embed)
+        output, _ = self.attention2(output, output, output)
+        output = self.linear_final(output)
+
+        return output
+
 class embedding_attention_mlp(nn.Module):
     def __init__(self, length, embedding_size):
         super(embedding_attention_mlp, self).__init__()
@@ -269,7 +286,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = embedding_attention_cross(length=56, embedding_size=5)
+    model = embedding_attention_attention(length=56, embedding_size=5)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
