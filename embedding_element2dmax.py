@@ -286,12 +286,12 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = embedding_attention_attention(length=56, embedding_size=5)
+    model = embedding_attention(length=56, embedding_size=10)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     epoch_num = 20000
 
