@@ -295,7 +295,7 @@ if __name__ == '__main__':
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    epoch_num = 20
+    epoch_num = 50000
 
     for epoch in range(epoch_num):
         def closure():
