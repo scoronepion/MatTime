@@ -59,7 +59,7 @@ def read_element(noise=False, sort=False, rare_element_scaler=None):
         features = features.append(details, ignore_index=True)
 
     features = features.fillna(0.0)
-    features += 0.00001
+    # features += 0.00001
     if noise:
         features = features.applymap(lambda x: x + abs(random.gauss(0, 0.0001)))
 
