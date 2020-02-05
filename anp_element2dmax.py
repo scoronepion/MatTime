@@ -300,6 +300,7 @@ class ANP(nn.Module):
 
 if __name__ == '__main__':
     train_dataset, test_dataset = preprocess()
+    writer = SummaryWriter('./logs/')
     model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
@@ -307,12 +308,13 @@ if __name__ == '__main__':
     model.double()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    epoch_num = 10000
+    epoch_num = 100000
 
     for epoch in range(epoch_num):
         def closure():
             optimizer.zero_grad()
             _, _, log_p, _, loss = model(train_dataset.query, train_dataset.num_target_points, train_dataset.target_y)
+            writer.add_scalar('Loss/train', loss.data.item(), epoch)
             # print(loss.data.item())
             loss.backward()
             return loss
@@ -322,6 +324,16 @@ if __name__ == '__main__':
         if epoch % 10 == 9:
             print('epoch : ', epoch)
             mu, sigma, _, _, loss = model(test_dataset.query, test_dataset.num_target_points, test_dataset.target_y)
+            writer.add_scalar('Loss/test', loss.data.item(), epoch)
+
+            writer.add_scalar('mean/-3', torch.squeeze(mu.data).numpy()[0], epoch)
+            writer.add_scalar('mean/-2', torch.squeeze(mu.data).numpy()[1], epoch)
+            writer.add_scalar('mean/-1', torch.squeeze(mu.data).numpy()[2], epoch)
+
+            writer.add_scalar('std/-3', torch.squeeze(sigma.data).numpy()[0], epoch)
+            writer.add_scalar('std/-2', torch.squeeze(sigma.data).numpy()[1], epoch)
+            writer.add_scalar('std/-1', torch.squeeze(sigma.data).numpy()[2], epoch)
+
             print('test loss:', loss.data.item())
             print("test mean:", torch.squeeze(mu.data))
             print("test std:", torch.squeeze(sigma.data))
