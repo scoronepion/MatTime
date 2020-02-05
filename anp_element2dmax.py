@@ -326,13 +326,13 @@ if __name__ == '__main__':
             mu, sigma, _, _, loss = model(test_dataset.query, test_dataset.num_target_points, test_dataset.target_y)
             writer.add_scalar('Loss/test', loss.data.item(), epoch)
 
-            writer.add_scalar('mean/-3', torch.squeeze(mu.data).numpy()[0], epoch)
-            writer.add_scalar('mean/-2', torch.squeeze(mu.data).numpy()[1], epoch)
-            writer.add_scalar('mean/-1', torch.squeeze(mu.data).numpy()[2], epoch)
+            writer.add_scalar('mean/-3', torch.squeeze(mu.data).cpu().numpy()[0], epoch)
+            writer.add_scalar('mean/-2', torch.squeeze(mu.data).cpu().numpy()[1], epoch)
+            writer.add_scalar('mean/-1', torch.squeeze(mu.data).cpu().numpy()[2], epoch)
 
-            writer.add_scalar('std/-3', torch.squeeze(sigma.data).numpy()[0], epoch)
-            writer.add_scalar('std/-2', torch.squeeze(sigma.data).numpy()[1], epoch)
-            writer.add_scalar('std/-1', torch.squeeze(sigma.data).numpy()[2], epoch)
+            writer.add_scalar('std/-3', torch.squeeze(sigma.data).cpu().numpy()[0], epoch)
+            writer.add_scalar('std/-2', torch.squeeze(sigma.data).cpu().numpy()[1], epoch)
+            writer.add_scalar('std/-1', torch.squeeze(sigma.data).cpu().numpy()[2], epoch)
 
             print('test loss:', loss.data.item())
             print("test mean:", torch.squeeze(mu.data))
