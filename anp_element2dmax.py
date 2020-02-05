@@ -14,6 +14,8 @@ ANPRegressionDescription = collections.namedtuple(
     ("query", "target_y", "num_total_points", "num_context_points", "num_target_points"))
 
 def preprocess():
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
     raw = read_element().values
     print("raw shape = " + str(raw.shape))
 
@@ -23,12 +25,20 @@ def preprocess():
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print("training x_train shape = " + str(x_train.shape))
     print("training x_test shape = " + str(x_test.shape))
-    # reshape to [B, context_observation, d_x/d_y]
-    x_train = torch.from_numpy(x_train).unsqueeze(0)
-    y_train = torch.from_numpy(y_train).unsqueeze(0)
-    # reshape to [B, target_observation, d_x/d_y]
-    x_test = torch.from_numpy(x_test).unsqueeze(0)
-    y_test = torch.from_numpy(y_test).unsqueeze(0)
+    if torch.cuda.is_available():
+        # reshape to [B, context_observation, d_x/d_y]
+        x_train = torch.from_numpy(x_train).unsqueeze(0).to(device)
+        y_train = torch.from_numpy(y_train).unsqueeze(0).to(device)
+        # reshape to [B, target_observation, d_x/d_y]
+        x_test = torch.from_numpy(x_test).unsqueeze(0).to(device)
+        y_test = torch.from_numpy(y_test).unsqueeze(0).to(device)
+    else:
+        # reshape to [B, context_observation, d_x/d_y]
+        x_train = torch.from_numpy(x_train).unsqueeze(0)
+        y_train = torch.from_numpy(y_train).unsqueeze(0)
+        # reshape to [B, target_observation, d_x/d_y]
+        x_test = torch.from_numpy(x_test).unsqueeze(0)
+        y_test = torch.from_numpy(y_test).unsqueeze(0)
 
     query_train = ((x_train, y_train), x_test)
     train_set = ANPRegressionDescription(
@@ -46,12 +56,20 @@ def preprocess():
     y_test = raw[-3:, -1:]
     print("test x_train shape = " + str(x_train.shape))
     print("test x_test shape = " + str(x_test.shape))
-    # reshape to [B, context_observation, d_x/d_y]
-    x_train = torch.from_numpy(x_train).unsqueeze(0)
-    y_train = torch.from_numpy(y_train).unsqueeze(0)
-    # reshape to [B, target_observation, d_x/d_y]
-    x_test = torch.from_numpy(x_test).unsqueeze(0)
-    y_test = torch.from_numpy(y_test).unsqueeze(0)
+    if torch.cuda.is_available():
+        # reshape to [B, context_observation, d_x/d_y]
+        x_train = torch.from_numpy(x_train).unsqueeze(0).to(device)
+        y_train = torch.from_numpy(y_train).unsqueeze(0).to(device)
+        # reshape to [B, target_observation, d_x/d_y]
+        x_test = torch.from_numpy(x_test).unsqueeze(0).to(device)
+        y_test = torch.from_numpy(y_test).unsqueeze(0).to(device)
+    else:
+        # reshape to [B, context_observation, d_x/d_y]
+        x_train = torch.from_numpy(x_train).unsqueeze(0)
+        y_train = torch.from_numpy(y_train).unsqueeze(0)
+        # reshape to [B, target_observation, d_x/d_y]
+        x_test = torch.from_numpy(x_test).unsqueeze(0)
+        y_test = torch.from_numpy(y_test).unsqueeze(0)
 
     query_test = ((x_train, y_train), x_test)
     test_set = ANPRegressionDescription(
@@ -278,18 +296,30 @@ class ANP(nn.Module):
 
 if __name__ == '__main__':
     train_dataset, test_dataset = preprocess()
-    # model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
-    # model.double()
-    # optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+        model.to(device)
+    model.double()
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    # epoch_num = 10000
+    epoch_num = 10000
 
-    # for epoch in range(epoch_num):
-    #     def closure():
-    #         optimizer.zero_grad()
-    #         _, _, log_p, _, loss = model(dataset.query, dataset.num_target_points, dataset.target_y)
-    #         print(loss.data.item())
-    #         loss.backward()
-    #         return loss
+    for epoch in range(epoch_num):
+        def closure():
+            optimizer.zero_grad()
+            _, _, log_p, _, loss = model(train_dataset.query, train_dataset.num_target_points, train_dataset.target_y)
+            # print(loss.data.item())
+            loss.backward()
+            return loss
         
-    #     optimizer.step(closure)
+        optimizer.step(closure)
+
+        if epoch % 10 == 9:
+            print('epoch : ', epoch)
+            mu, sigma, _, _, loss = model(test_dataset.query, test_dataset.num_target_points, test_dataset.target_y)
+            print('test loss:', loss.data.item())
+            print("test mean:", torch.squeeze(mu.data))
+            print("test std:", torch.squeeze(sigma.data))
+            # print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
+            # print('weight: ', model.embedding.embedding.weight)
