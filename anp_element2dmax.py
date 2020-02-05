@@ -10,22 +10,31 @@ from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
 
 ANPRegressionDescription = collections.namedtuple(
-    "NPRegressionDescription",
-    ("query", "target_y", "num_total_points", "num_context_points"))
+    "ANPRegressionDescription",
+    ("query", "target_y", "num_total_points", "num_context_points", "num_target_points"))
 
-def preprocess(raw):
-    # raw = read_element().values
+def preprocess():
+    raw = read_element().values
     features = raw[:, :-1]
     target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print(x_train.shape)
     print(x_test.shape)
+    # reshape to [B, context_observation, d_x/d_y]
+    x_train = torch.from_numpy(x_train).unsqueeze(0)
+    y_train = torch.from_numpy(y_train).unsqueeze(0)
+    # reshape to [B, target_observation, d_x/d_y]
+    x_test = torch.from_numpy(x_test).unsqueeze(0)
+    y_test = torch.from_numpy(y_test).unsqueeze(0)
+
     query = ((x_train, y_train), x_test)
+
     return ANPRegressionDescription(
         query=query,
         target_y=y_test,
         num_total_points=raw.shape[0],
-        num_context_points=x_train.shape[0]
+        num_context_points=x_train.shape[1],
+        num_target_points=x_test.shape[1]
     )
     
 class scaled_dot_product_attention(nn.Module):
@@ -55,7 +64,7 @@ class scaled_dot_product_attention(nn.Module):
         return context, attention
 
 class multi_heads_self_attention(nn.Module):
-    def __init__(self, feature_dim=56, num_heads=2, dropout=0.0):
+    def __init__(self, feature_dim, num_heads=2, dropout=0.0):
         super(multi_heads_self_attention, self).__init__()
 
         self.dim_per_head = feature_dim // num_heads
@@ -68,7 +77,8 @@ class multi_heads_self_attention(nn.Module):
         self.linear_attention = nn.Linear(feature_dim, feature_dim)
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(feature_dim)
-        # self.linear_1 = nn.Linear(feature_dim, 256)
+        # 为了 de_encoder 中后接 cross attention 能正常运算，此处需要线性层减少 1 维
+        self.linear = nn.Linear(feature_dim, 56)
         # self.linear_2 = nn.Linear(256, feature_dim)
         # self.layer_final = nn.Linear(feature_dim, 3)
 
@@ -98,8 +108,8 @@ class multi_heads_self_attention(nn.Module):
         # add residual and norm layer
         output = self.layer_norm(residual + output)
 
-        # # pass through linear
-        # output = nn.functional.relu(self.linear_1(output))
+        # pass through linear
+        output = self.linear(output)
         # output = nn.functional.relu(self.linear_2(output))
 
         # # pass through layer final
@@ -110,8 +120,8 @@ class multi_heads_self_attention(nn.Module):
 class DeterministicEncoder(nn.Module):
     def __init__(self):
         super(DeterministicEncoder, self).__init__()
-        self.self_attention = multi_heads_self_attention()
-        self.cross_attention = multi_heads_self_attention()
+        self.self_attention = multi_heads_self_attention(feature_dim=57, num_heads=3)
+        self.cross_attention = multi_heads_self_attention(feature_dim=56, num_heads=2)
 
     def forward(self, x_context, y_context, x_target):
         '''
@@ -123,17 +133,18 @@ class DeterministicEncoder(nn.Module):
         # concat x and y
         encoder_input = torch.cat((x_context, y_context), dim=-1)
         # pass through self-attention
+        # 为了下一层 cross attention 能正常运算，此处 self-attention 输出应该减少 1 维（变为 56 维）
         output, _ = self.self_attention(encoder_input, encoder_input, encoder_input)
         # pass through cross-attention
-        output, _ = self.cross_attention(encoder_input, output, x_target)
+        output, _ = self.cross_attention(x_context, output, x_target)
 
         return output
 
 class LatentEncoder(nn.Module):
-    def __init__(self, feature_dim, hidden_size):
+    def __init__(self, linear_feature_dim, hidden_size):
         super(LatentEncoder, self).__init__()
-        self.self_attention = multi_heads_self_attention()
-        self.linear_relu = nn.Linear(feature_dim, hidden_size * 2)
+        self.self_attention = multi_heads_self_attention(feature_dim=57, num_heads=3)
+        self.linear_relu = nn.Linear(linear_feature_dim, hidden_size * 2)
         self.linear_mean = nn.Linear(hidden_size * 2, hidden_size)
         self.linear_std = nn.Linear(hidden_size * 2, hidden_size)
     
@@ -153,7 +164,7 @@ class LatentEncoder(nn.Module):
         # calculate mean and std
         mu = self.linear_mean(output)
         log_sigma = self.linear_std(output)
-        sigma = 0.1 + 0.9 * nn.functional.sigmoid(log_sigma)
+        sigma = 0.1 + 0.9 * torch.sigmoid(log_sigma)
 
         return torch.distributions.normal.Normal(loc=mu, scale=sigma)
 
@@ -167,7 +178,7 @@ class Decoder(nn.Module):
 
     def forward(self, context_rep, x_target):
         '''
-            context_rep: context representation for target predictions, [B, target_observations, ?]
+            context_rep: context representation for target predictions, [B, target_observations, ?] (这里是 128+56)
             x_target: [B, target_observations, d_x]
         return: 
             dist: A multivariate Gaussian over the target points, [B,target_observations,d_y]
@@ -182,10 +193,14 @@ class Decoder(nn.Module):
         output = nn.functional.relu(self.linear3(output))
         output = self.linear4(output)
         # get mean and std
-        mu, log_sigma = torch.split(output, 2, dim=-1)
+        # (split_size_or_sections: size of a single chunk or list of sizes for each chunk)
+        mu, log_sigma = torch.split(output, split_size_or_sections=1, dim=-1)
+        # mu = torch.squeeze(mu)
+        # log_sigma = torch.squeeze(log_sigma, dim=0)
         sigma = 0.1 + 0.9 * nn.functional.softplus(log_sigma)
         # get the distribution
-        dist = torch.distributions.multivariate_normal.MultivariateNormal(loc=mu, scale_tril=sigma)
+        # dist = torch.distributions.multivariate_normal.MultivariateNormal(loc=mu, scale_tril=sigma)
+        dist = torch.distributions.normal.Normal(loc=mu, scale=sigma)
 
         return dist, mu, sigma
 
@@ -199,6 +214,7 @@ class ANP(nn.Module):
     def forward(self, query, num_targets, y_target=None):
         (x_context, y_context), x_target = query
         # pass through deterministic encoder
+        # [B, num_targets, 56]
         de_rep = self.de_encoder(x_context, y_context, x_target)
         # pass through latentencoder
         prior = self.la_encoder(x_context, y_context)
@@ -210,6 +226,7 @@ class ANP(nn.Module):
             posterior = self.la_encoder(x_target, y_target)
             la_rep = posterior.sample()
         # TODO: why?
+        # [B, num_targets, hidden_size]
         la_rep = torch.unsqueeze(la_rep, 1).repeat(1, num_targets, 1)
         # concat representation
         representation = torch.cat((de_rep, la_rep), dim=-1)
@@ -233,5 +250,19 @@ class ANP(nn.Module):
         return mu, sigma, log_p, kl, loss
 
 if __name__ == '__main__':
-    raw = read_element().values
-    print(preprocess(raw))
+    dataset = preprocess()
+    model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
+    model.double()
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+
+    epoch_num = 10000
+
+    for epoch in range(epoch_num):
+        def closure():
+            optimizer.zero_grad()
+            _, _, log_p, _, loss = model(dataset.query, dataset.num_target_points, dataset.target_y)
+            print(loss.data.item())
+            loss.backward()
+            return loss
+        
+        optimizer.step(closure)
