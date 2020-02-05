@@ -219,7 +219,9 @@ class Decoder(nn.Module):
         self.linear1 = nn.Linear(feature_dim, feature_dim)
         self.linear2 = nn.Linear(feature_dim, feature_dim)
         self.linear3 = nn.Linear(feature_dim, feature_dim)
-        self.linear4 = nn.Linear(feature_dim, y_dim * 2)
+        # self.linear4 = nn.Linear(feature_dim, y_dim * 2)
+        self.linear_mu = nn.Linear(feature_dim, 1)
+        self.linear_sigma = nn.Linear(feature_dim, 1)
 
     def forward(self, context_rep, x_target):
         '''
@@ -236,10 +238,12 @@ class Decoder(nn.Module):
         output = nn.functional.relu(self.linear1(output))
         output = nn.functional.relu(self.linear2(output))
         output = nn.functional.relu(self.linear3(output))
-        output = self.linear4(output)
+        # output = self.linear4(output)
         # get mean and std
         # (split_size_or_sections: size of a single chunk or list of sizes for each chunk)
-        mu, log_sigma = torch.split(output, split_size_or_sections=1, dim=-1)
+        # mu, log_sigma = torch.split(output, split_size_or_sections=1, dim=-1)
+        mu = self.linear_mu(output)
+        log_sigma = self.linear_sigma(output)
         # mu = torch.squeeze(mu)
         # log_sigma = torch.squeeze(log_sigma, dim=0)
         sigma = 0.1 + 0.9 * nn.functional.softplus(log_sigma)
