@@ -15,11 +15,14 @@ ANPRegressionDescription = collections.namedtuple(
 
 def preprocess():
     raw = read_element().values
-    features = raw[:, :-1]
-    target = raw[:, -1:]
+    print("raw shape = " + str(raw.shape))
+
+    # 训练集：除开最后三条，其余正常按照 target 和 context 划分
+    features = raw[:-3, :-1]
+    target = raw[:-3, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
-    print(x_train.shape)
-    print(x_test.shape)
+    print("training x_train shape = " + str(x_train.shape))
+    print("training x_test shape = " + str(x_test.shape))
     # reshape to [B, context_observation, d_x/d_y]
     x_train = torch.from_numpy(x_train).unsqueeze(0)
     y_train = torch.from_numpy(y_train).unsqueeze(0)
@@ -27,15 +30,39 @@ def preprocess():
     x_test = torch.from_numpy(x_test).unsqueeze(0)
     y_test = torch.from_numpy(y_test).unsqueeze(0)
 
-    query = ((x_train, y_train), x_test)
-
-    return ANPRegressionDescription(
-        query=query,
+    query_train = ((x_train, y_train), x_test)
+    train_set = ANPRegressionDescription(
+        query=query_train,
         target_y=y_test,
         num_total_points=raw.shape[0],
         num_context_points=x_train.shape[1],
         num_target_points=x_test.shape[1]
     )
+
+    # 测试集：最后三条用作 target，剩余的用作 context
+    x_train = raw[:-3, :-1]
+    y_train = raw[:-3, -1:]
+    x_test = raw[-3:, :-1]
+    y_test = raw[-3:, -1:]
+    print("test x_train shape = " + str(x_train.shape))
+    print("test x_test shape = " + str(x_test.shape))
+    # reshape to [B, context_observation, d_x/d_y]
+    x_train = torch.from_numpy(x_train).unsqueeze(0)
+    y_train = torch.from_numpy(y_train).unsqueeze(0)
+    # reshape to [B, target_observation, d_x/d_y]
+    x_test = torch.from_numpy(x_test).unsqueeze(0)
+    y_test = torch.from_numpy(y_test).unsqueeze(0)
+
+    query_test = ((x_train, y_train), x_test)
+    test_set = ANPRegressionDescription(
+        query=query_test,
+        target_y=y_test,
+        num_total_points=raw.shape[0],
+        num_context_points=x_train.shape[1],
+        num_target_points=x_test.shape[1]
+    )
+
+    return train_set, test_set
     
 class scaled_dot_product_attention(nn.Module):
     def __init__(self, att_dropout=0.0):
@@ -250,19 +277,19 @@ class ANP(nn.Module):
         return mu, sigma, log_p, kl, loss
 
 if __name__ == '__main__':
-    dataset = preprocess()
-    model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
-    model.double()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    train_dataset, test_dataset = preprocess()
+    # model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
+    # model.double()
+    # optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    epoch_num = 10000
+    # epoch_num = 10000
 
-    for epoch in range(epoch_num):
-        def closure():
-            optimizer.zero_grad()
-            _, _, log_p, _, loss = model(dataset.query, dataset.num_target_points, dataset.target_y)
-            print(loss.data.item())
-            loss.backward()
-            return loss
+    # for epoch in range(epoch_num):
+    #     def closure():
+    #         optimizer.zero_grad()
+    #         _, _, log_p, _, loss = model(dataset.query, dataset.num_target_points, dataset.target_y)
+    #         print(loss.data.item())
+    #         loss.backward()
+    #         return loss
         
-        optimizer.step(closure)
+    #     optimizer.step(closure)
