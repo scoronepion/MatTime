@@ -18,7 +18,7 @@ def get_element_set():
             elements_set.add(element)
     print(elements_set)
 
-def read_element(noise=False, sort=False, rare_element_scaler=None):
+def read_element(noise=False, sort=False, rare_element_scaler=None, nega_sampling=False):
     '''直接返回元素含量百分比'''
     print("start reading...")
     raw = pd.read_csv('dmax.csv')
@@ -71,11 +71,33 @@ def read_element(noise=False, sort=False, rare_element_scaler=None):
         features.sort_values("Dmax", inplace=True)
         features = features.reset_index(drop=True)
 
-    # print(features.head())
+    features.dropna(inplace=True)
+    # 负采样
+    if nega_sampling:
+        # 将 dmax 为 0.0 的 1552 条样本负采样为原来的 0.44
+        features.drop(features[features['Dmax'] == 0.0].sample(frac=0.56, axis=0).index, inplace=True)
+        # 将 dmax 为 0.1 的 3708 条样本负采样为原来的 0.185
+        features.drop(features[features['Dmax'] == 0.1].sample(frac=0.815, axis=0).index, inplace=True)
+
+    # 将 dmax 扩大 10 倍
+    features['Dmax'] *= 10
+
+    # print(features.tail(5))
     # print(features.info())
+
     print('finish read')
     return features.dropna()
 
 if __name__ == '__main__':
-    read_element(noise=False, sort=False)
+    raw = read_element(noise=False, sort=False, nega_sampling=True)
+    info = dict(raw['Dmax'].value_counts())
+    sum = 0.0
+    for key, value in info.items():
+        if key == 0:
+            print(key, value)
+        elif key == 1:
+            print(key, value)
+        else:
+            sum += value
+    print(sum)
     # get_element_set()
