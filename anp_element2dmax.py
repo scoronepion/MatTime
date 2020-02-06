@@ -122,10 +122,8 @@ class multi_heads_self_attention(nn.Module):
         self.linear_attention = nn.Linear(feature_dim, feature_dim)
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(feature_dim)
-        # 为了 de_encoder 中后接 cross attention 能正常运算，此处需要线性层减少 1 维
-        self.linear = nn.Linear(feature_dim, 56)
-        # self.linear_2 = nn.Linear(256, feature_dim)
-        # self.layer_final = nn.Linear(feature_dim, 3)
+        # # 为了 de_encoder 中后接 cross attention 能正常运算，此处需要线性层减少 1 维
+        # self.linear = nn.Linear(feature_dim, 56)
 
     def forward(self, key, value, query):
         residual = query
@@ -154,11 +152,7 @@ class multi_heads_self_attention(nn.Module):
         output = self.layer_norm(residual + output)
 
         # pass through linear
-        output = self.linear(output)
-        # output = nn.functional.relu(self.linear_2(output))
-
-        # # pass through layer final
-        # output = self.layer_final(output)
+        # output = self.linear(output)
 
         return output, attention
 
@@ -167,17 +161,8 @@ class DeterministicEncoder(nn.Module):
         super(DeterministicEncoder, self).__init__()
         self.self_attention = multi_heads_self_attention(feature_dim=57, num_heads=3)
         self.cross_attention = multi_heads_self_attention(feature_dim=56, num_heads=2)
-        # for self-attention context
-        self.linear1 = nn.Linear(57, 128)
-        self.linear2 = nn.Linear(128, 128)
-        self.linear3 = nn.Linear(128, 57)
-        # for cross-attention context and target
-        self.linear4 = nn.Linear(56, 128)
-        self.linear5 = nn.Linear(128, 128)
-        self.linear6 = nn.Linear(128, 56)
-        # self.dropout = nn.Dropout(0.5)
-        self.layer_norm_1 = nn.LayerNorm(57)
-        self.layer_norm_2 = nn.LayerNorm(56)
+        # 连接 self-attention 与 cross-attention
+        self.linear = nn.Linear(57, 56)
 
     def forward(self, x_context, y_context, x_target):
         '''
@@ -188,30 +173,10 @@ class DeterministicEncoder(nn.Module):
         '''
         # concat x and y
         encoder_input = torch.cat((x_context, y_context), dim=-1)
-        # pass through mlp
-        encoder_input = nn.functional.relu(self.linear1(encoder_input))
-        # encoder_input = self.dropout(encoder_input)
-        encoder_input = nn.functional.relu(self.linear2(encoder_input))
-        # encoder_input = self.dropout(encoder_input)
-        encoder_input = self.linear3(encoder_input)
-        encoder_input = self.layer_norm_1(encoder_input)
         # pass through self-attention
         # 为了下一层 cross attention 能正常运算，此处 self-attention 输出应该减少 1 维（变为 56 维）
         output, _ = self.self_attention(encoder_input, encoder_input, encoder_input)
-        # pass x_context to mlp
-        x_context = nn.functional.relu(self.linear4(x_context))
-        # x_context = self.dropout(x_context)
-        x_context = nn.functional.relu(self.linear5(x_context))
-        # x_context = self.dropout(x_context)
-        x_context = self.linear6(x_context)
-        x_context = self.layer_norm_2(x_context)
-        # pass x_target to mlp
-        x_target = nn.functional.relu(self.linear4(x_target))
-        # x_target = self.dropout(x_target)
-        x_target = nn.functional.relu(self.linear5(x_target))
-        # x_target = self.dropout(x_target)
-        x_target = self.linear6(x_target)
-        x_target = self.layer_norm_2(x_target)
+        output = self.linear(output)
         # pass through cross-attention
         output, _ = self.cross_attention(x_context, output, x_target)
 
@@ -220,15 +185,10 @@ class DeterministicEncoder(nn.Module):
 class LatentEncoder(nn.Module):
     def __init__(self, linear_feature_dim, hidden_size):
         super(LatentEncoder, self).__init__()
-        self.linear1 = nn.Linear(57, 128)
-        self.linear2 = nn.Linear(128, 128)
-        self.linear3 = nn.Linear(128, 57)
         self.self_attention = multi_heads_self_attention(feature_dim=57, num_heads=3)
         self.linear_relu = nn.Linear(linear_feature_dim, hidden_size * 2)
         self.linear_mean = nn.Linear(hidden_size * 2, hidden_size)
         self.linear_std = nn.Linear(hidden_size * 2, hidden_size)
-        # self.dropout = nn.Dropout(0.5)
-        self.layer_norm = nn.LayerNorm(57)
     
     def forward(self, x, y):
         '''
@@ -237,13 +197,6 @@ class LatentEncoder(nn.Module):
         '''
         # concat x and y
         encoder_input = torch.cat((x, y), dim=-1)
-        # pass through mlp
-        encoder_input = nn.functional.relu(self.linear1(encoder_input))
-        # encoder_input = self.dropout(encoder_input)
-        encoder_input = nn.functional.relu(self.linear2(encoder_input))
-        # encoder_input = self.dropout(encoder_input)
-        encoder_input = self.linear3(encoder_input)
-        encoder_input = self.layer_norm(encoder_input)
         # pass through self-attention
         output, _ = self.self_attention(encoder_input, encoder_input, encoder_input)
         # mean
@@ -260,14 +213,17 @@ class LatentEncoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, feature_dim, y_dim):
         super(Decoder, self).__init__()
-        self.linear1 = nn.Linear(feature_dim, feature_dim)
-        self.linear2 = nn.Linear(feature_dim, feature_dim)
-        self.linear3 = nn.Linear(feature_dim, feature_dim)
+        # self.linear1 = nn.Linear(feature_dim, feature_dim)
+        # self.linear2 = nn.Linear(feature_dim, feature_dim)
+        # self.linear3 = nn.Linear(feature_dim, feature_dim)
         # self.linear4 = nn.Linear(feature_dim, y_dim * 2)
+        self.attention = multi_heads_self_attention(feature_dim=feature_dim)
+        # attention 输出
+        self.linear_attention = nn.Linear(feature_dim, feature_dim)
         self.linear_mu = nn.Linear(feature_dim, 1)
         self.linear_sigma = nn.Linear(feature_dim, 1)
         # self.dropout = nn.Dropout(0.5)
-        self.layer_norm = nn.LayerNorm(feature_dim)
+        # self.layer_norm = nn.LayerNorm(feature_dim)
 
     def forward(self, context_rep, x_target):
         '''
@@ -280,14 +236,18 @@ class Decoder(nn.Module):
         '''
         # concat context representation and x_target
         output = torch.cat((context_rep, x_target), dim=-1)
-        # pass through mlp
-        output = nn.functional.relu(self.linear1(output))
-        # output = self.dropout(output)
-        output = nn.functional.relu(self.linear2(output))
-        # output = self.dropout(output)
-        output = self.linear3(output)
-        output = self.layer_norm(output)
+
+        # # pass through mlp
+        # output = nn.functional.relu(self.linear1(output))
+        # # output = self.dropout(output)
+        # output = nn.functional.relu(self.linear2(output))
+        # # output = self.dropout(output)
+        # output = self.linear3(output)
+        # output = self.layer_norm(output)
         # output = self.linear4(output)
+
+        output, _ = self.attention(output, output, output)
+        output = nn.functional.relu(self.linear_attention(output))
         # get mean and std
         # (split_size_or_sections: size of a single chunk or list of sizes for each chunk)
         # mu, log_sigma = torch.split(output, split_size_or_sections=1, dim=-1)
@@ -350,7 +310,7 @@ class ANP(nn.Module):
 if __name__ == '__main__':
     train_dataset, test_dataset = preprocess()
     writer = SummaryWriter('./logs/')
-    model = ANP(encoder_feature_dim=56, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
+    model = ANP(encoder_feature_dim=57, hidden_size=128, decoder_feature_dim=128+56+56, y_dim=1)
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
         model.to(device)
