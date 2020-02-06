@@ -266,7 +266,7 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element().values
+    raw = read_element(nega_sampling=True).values
     # raw = np.expand_dims(raw, axis=1)
 
     # 最后三条作为展示集
@@ -327,12 +327,20 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                print('show case:', torch.squeeze(show_pred.cpu()).detach().numpy())
+                show_case_result = torch.squeeze(show_pred.cpu()).detach().numpy()
+                print('show case:', show_case_result)
+                writer.add_scalar('pred/-3', show_case_result[-3], epoch)
+                writer.add_scalar('pred/-2', show_case_result[-2], epoch)
+                writer.add_scalar('pred/-1', show_case_result[-1], epoch)
             else:
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                print('show case:', torch.squeeze(show_pred).detach().numpy())
+                show_case_result = torch.squeeze(show_pred).detach().numpy()
+                print('show case:', show_case_result)
+                writer.add_scalar('pred/-3', show_case_result[-3], epoch)
+                writer.add_scalar('pred/-2', show_case_result[-2], epoch)
+                writer.add_scalar('pred/-1', show_case_result[-1], epoch)
             # print('weight: ', model.embedding.embedding.weight)
 
     # f.close()
