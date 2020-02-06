@@ -213,16 +213,16 @@ class LatentEncoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, feature_dim, y_dim):
         super(Decoder, self).__init__()
-        # self.linear1 = nn.Linear(feature_dim, feature_dim)
-        # self.linear2 = nn.Linear(feature_dim, feature_dim)
-        # self.linear3 = nn.Linear(feature_dim, feature_dim)
+        self.linear1 = nn.Linear(feature_dim, feature_dim)
+        self.linear2 = nn.Linear(feature_dim, feature_dim)
+        self.linear3 = nn.Linear(feature_dim, feature_dim)
         # self.linear4 = nn.Linear(feature_dim, y_dim * 2)
-        self.attention = multi_heads_self_attention(feature_dim=feature_dim)
-        # attention 输出
-        self.linear_attention = nn.Linear(feature_dim, feature_dim)
+        # self.attention = multi_heads_self_attention(feature_dim=feature_dim)
+        # # attention 输出
+        # self.linear_attention = nn.Linear(feature_dim, feature_dim)
         self.linear_mu = nn.Linear(feature_dim, 1)
         self.linear_sigma = nn.Linear(feature_dim, 1)
-        # self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.2)
         # self.layer_norm = nn.LayerNorm(feature_dim)
 
     def forward(self, context_rep, x_target):
@@ -237,17 +237,17 @@ class Decoder(nn.Module):
         # concat context representation and x_target
         output = torch.cat((context_rep, x_target), dim=-1)
 
-        # # pass through mlp
-        # output = nn.functional.relu(self.linear1(output))
-        # # output = self.dropout(output)
-        # output = nn.functional.relu(self.linear2(output))
-        # # output = self.dropout(output)
-        # output = self.linear3(output)
+        # pass through mlp
+        output = nn.functional.relu(self.linear1(output))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear2(output))
+        output = self.dropout(output)
+        output = nn.functional.relu(self.linear3(output))
         # output = self.layer_norm(output)
         # output = self.linear4(output)
 
-        output, _ = self.attention(output, output, output)
-        output = nn.functional.relu(self.linear_attention(output))
+        # output, _ = self.attention(output, output, output)
+        # output = nn.functional.relu(self.linear_attention(output))
         # get mean and std
         # (split_size_or_sections: size of a single chunk or list of sizes for each chunk)
         # mu, log_sigma = torch.split(output, split_size_or_sections=1, dim=-1)
