@@ -6,6 +6,7 @@ import sys
 from big_predata import read_element
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
+from torch.utils.tensorboard import SummaryWriter
 
 class cross_layer(nn.Module):
     def __init__(self, input_dim):
@@ -101,7 +102,6 @@ class multi_heads_self_attention(nn.Module):
 
         return output, attention
 
-
 class mlp(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(mlp, self).__init__()
@@ -109,16 +109,16 @@ class mlp(nn.Module):
         self.linear2 = nn.Linear(256, 512)
         self.linear3 = nn.Linear(512, 256)
         self.linear4 = nn.Linear(256, output_dim)
-        self.dropout = nn.Dropout(0.5)
+        # self.dropout = nn.Dropout(0.5)
 
     def forward(self, input):
         output = nn.functional.relu(self.linear1(input))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = nn.functional.relu(self.linear2(output))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = nn.functional.relu(self.linear3(output))
-        output = self.dropout(output)
-        output = nn.functional.relu(self.linear4(output))
+        # output = self.dropout(output)
+        output = self.linear4(output)
 
         return output
 
@@ -260,9 +260,9 @@ class cross_mlp_attention(nn.Module):
         return output
 
 if __name__ == '__main__':
-    # f = open('0127.log', 'a')
-    # sys.stdout = f
-    # sys.stderr = f
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+    writer = SummaryWriter('./logs/')
     raw = read_element().values
     features = raw[:, :-1]
     target = raw[:, -1:]
@@ -270,23 +270,32 @@ if __name__ == '__main__':
     print(x_train.shape)
     print(x_test.shape)
 
-    x_train = torch.from_numpy(x_train)
-    x_test = torch.from_numpy(x_test)
-    y_train = torch.from_numpy(y_train)
-    y_test = torch.from_numpy(y_test)
+    if torch.cuda.is_available():
+        x_train = torch.from_numpy(x_train).to(device)
+        x_test = torch.from_numpy(x_test).to(device)
+        y_train = torch.from_numpy(y_train).to(device)
+        y_test = torch.from_numpy(y_test).to(device)
+    else:
+        x_train = torch.from_numpy(x_train)
+        x_test = torch.from_numpy(x_test)
+        y_train = torch.from_numpy(y_train)
+        y_test = torch.from_numpy(y_test)
 
-    model = pure_attention(input_dim=56)
+    model = mlp(input_dim=45, output_dim=1)
+    if torch.cuda.is_available():
+        model.to(device)
     model.double()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-    epoch_num = 20000
+    epoch_num = 50000
 
     for epoch in range(epoch_num):
         def closure():
             optimizer.zero_grad()
             out = model(x_train)
             loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
+            writer.add_scalar('Loss/train', loss.data.item(), epoch)
             # print('loss:', loss.data.item())
             # loss_list.append(loss.data.item())
             loss.backward()
@@ -299,7 +308,12 @@ if __name__ == '__main__':
             pred = model(x_test)
             loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
             print('test loss:', loss.data.item())
-            print('r2:', r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy()))
-            # print('weight: ', model.embedding.embedding.weight)
-
-    # f.close()
+            writer.add_scalar('Loss/test', loss.data.item(), epoch)
+            if torch.cuda.is_available():
+                r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
+                writer.add_scalar('R2', r2, epoch)
+                print('r2:', r2)
+            else:
+                r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
+                writer.add_scalar('R2', r2, epoch)
+                print('r2:', r2)

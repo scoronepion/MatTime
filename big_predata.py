@@ -91,8 +91,8 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
     # # 将 dmax 扩大 10 倍
     # features['Dmax'] *= 10
 
-    print(features.tail(5))
-    print(features.info())
+    # print(features.tail(5))
+    # print(features.info())
 
     print('finish read')
     return features.dropna()
