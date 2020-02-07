@@ -266,15 +266,15 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element(nega_sampling=True).values
+    raw = read_element(sort=True).values
     # raw = np.expand_dims(raw, axis=1)
 
     # # 最后三条作为展示集
     # show_features = raw[-3:, :-1]
     # show_target = raw[-3:, -1:]
 
-    features = raw[:, :-1]
-    target = raw[:, -1:]
+    features = raw[:-3, :-1]
+    target = raw[:-3, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print(x_train.shape)
     print(x_test.shape)
@@ -294,7 +294,7 @@ if __name__ == '__main__':
         # show_features = torch.from_numpy(show_features)
         # show_target = torch.from_numpy(show_target)
 
-    model = embedding_mlp(length=45, embedding_size=5)
+    model = embedding_mlp(length=45, embedding_size=3)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
