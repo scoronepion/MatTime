@@ -139,7 +139,7 @@ class embedding_mlp(nn.Module):
     def __init__(self, length, embedding_size):
         super(embedding_mlp, self).__init__()
         self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
-        self.dropout = nn.Dropout(0.5)
+        # self.dropout = nn.Dropout(0.5)
         self.linear1 = nn.Linear(length * embedding_size, 256)
         self.linear2 = nn.Linear(256, 512)
         self.linera3 = nn.Linear(512, 256)
@@ -148,9 +148,9 @@ class embedding_mlp(nn.Module):
     def forward(self, input):
         embed = self.embedding(input)
         output = nn.functional.relu(self.linear1(embed))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = nn.functional.relu(self.linear2(output))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = nn.functional.relu(self.linera3(output))
         output = self.linear4(output)
 
@@ -269,12 +269,12 @@ if __name__ == '__main__':
     raw = read_element(nega_sampling=True).values
     # raw = np.expand_dims(raw, axis=1)
 
-    # 最后三条作为展示集
-    show_features = raw[-3:, :-1]
-    show_target = raw[-3:, -1:]
+    # # 最后三条作为展示集
+    # show_features = raw[-3:, :-1]
+    # show_target = raw[-3:, -1:]
 
-    features = raw[:-3, :-1]
-    target = raw[:-3, -1:]
+    features = raw[:, :-1]
+    target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print(x_train.shape)
     print(x_test.shape)
@@ -284,17 +284,17 @@ if __name__ == '__main__':
         x_test = torch.from_numpy(x_test).to(device)
         y_train = torch.from_numpy(y_train).to(device)
         y_test = torch.from_numpy(y_test).to(device)
-        show_features = torch.from_numpy(show_features).to(device)
-        show_target = torch.from_numpy(show_target).to(device)
+        # show_features = torch.from_numpy(show_features).to(device)
+        # show_target = torch.from_numpy(show_target).to(device)
     else:
         x_train = torch.from_numpy(x_train)
         x_test = torch.from_numpy(x_test)
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
-        show_features = torch.from_numpy(show_features)
-        show_target = torch.from_numpy(show_target)
+        # show_features = torch.from_numpy(show_features)
+        # show_target = torch.from_numpy(show_target)
 
-    model = embedding_attention(length=56, embedding_size=5)
+    model = embedding_mlp(length=45, embedding_size=5)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
@@ -319,7 +319,7 @@ if __name__ == '__main__':
         if epoch % 10 == 9:
             print('epoch : ', epoch)
             pred = model(x_test)
-            show_pred = model(show_features)
+            # show_pred = model(show_features)
             loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
             writer.add_scalar('Loss/test', loss.data.item(), epoch)
             print('test loss:', loss.data.item())
@@ -327,20 +327,20 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                show_case_result = torch.squeeze(show_pred.cpu()).detach().numpy()
-                print('show case:', show_case_result)
-                writer.add_scalar('pred/-3', show_case_result[-3], epoch)
-                writer.add_scalar('pred/-2', show_case_result[-2], epoch)
-                writer.add_scalar('pred/-1', show_case_result[-1], epoch)
+                # show_case_result = torch.squeeze(show_pred.cpu()).detach().numpy()
+                # print('show case:', show_case_result)
+                # writer.add_scalar('pred/-3', show_case_result[-3], epoch)
+                # writer.add_scalar('pred/-2', show_case_result[-2], epoch)
+                # writer.add_scalar('pred/-1', show_case_result[-1], epoch)
             else:
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                show_case_result = torch.squeeze(show_pred).detach().numpy()
-                print('show case:', show_case_result)
-                writer.add_scalar('pred/-3', show_case_result[-3], epoch)
-                writer.add_scalar('pred/-2', show_case_result[-2], epoch)
-                writer.add_scalar('pred/-1', show_case_result[-1], epoch)
+                # show_case_result = torch.squeeze(show_pred).detach().numpy()
+                # print('show case:', show_case_result)
+                # writer.add_scalar('pred/-3', show_case_result[-3], epoch)
+                # writer.add_scalar('pred/-2', show_case_result[-2], epoch)
+                # writer.add_scalar('pred/-1', show_case_result[-1], epoch)
             # print('weight: ', model.embedding.embedding.weight)
 
     # f.close()
