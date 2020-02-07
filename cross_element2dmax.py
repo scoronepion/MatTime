@@ -109,15 +109,15 @@ class mlp(nn.Module):
         self.linear2 = nn.Linear(256, 512)
         self.linear3 = nn.Linear(512, 256)
         self.linear4 = nn.Linear(256, output_dim)
-        self.dropout = nn.Dropout(0.5)
+        # self.dropout = nn.Dropout(0.5)
 
     def forward(self, input):
         output = nn.functional.relu(self.linear1(input))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = nn.functional.relu(self.linear2(output))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = nn.functional.relu(self.linear3(output))
-        output = self.dropout(output)
+        # output = self.dropout(output)
         output = self.linear4(output)
 
         return output
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element().values
+    raw = read_element(dmax_scale=10).values
     features = raw[:, :-1]
     target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)

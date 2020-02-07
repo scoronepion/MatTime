@@ -18,7 +18,7 @@ def get_element_set():
             elements_set.add(element)
     print(elements_set)
 
-def read_element(noise=False, sort=False, rare_element_scaler=None, nega_sampling=False):
+def read_element(noise=False, sort=False, rare_element_scaler=None, nega_sampling=False, dmax_scale=None):
     '''直接返回元素含量百分比'''
     print("start reading...")
     raw = pd.read_csv('ctt_clean.csv')
@@ -88,8 +88,9 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
         # 将 dmax 为 0.1 的 3708 条样本负采样为原来的 0.185
         features.drop(features[features['Dmax'] == 0.1].sample(frac=0.815, axis=0).index, inplace=True)
 
-    # # 将 dmax 扩大 10 倍
-    # features['Dmax'] *= 10
+    # 将 dmax 扩大 dmax_scale 倍
+    if dmax_scale:
+        features['Dmax'] *= dmax_scale
 
     # print(features.tail(5))
     # print(features.info())
