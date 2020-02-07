@@ -109,15 +109,15 @@ class mlp(nn.Module):
         self.linear2 = nn.Linear(256, 512)
         self.linear3 = nn.Linear(512, 256)
         self.linear4 = nn.Linear(256, output_dim)
-        # self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, input):
         output = nn.functional.relu(self.linear1(input))
-        # output = self.dropout(output)
+        output = self.dropout(output)
         output = nn.functional.relu(self.linear2(output))
-        # output = self.dropout(output)
+        output = self.dropout(output)
         output = nn.functional.relu(self.linear3(output))
-        # output = self.dropout(output)
+        output = self.dropout(output)
         output = self.linear4(output)
 
         return output
