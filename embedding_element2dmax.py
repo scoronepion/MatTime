@@ -113,7 +113,10 @@ class multi_heads_self_attention(nn.Module):
         value = value.view(batch_size * self.num_heads, -1, self.dim_per_head)
         query = query.view(batch_size * self.num_heads, -1, self.dim_per_head)
 
-        scale = (key.size(-1) // self.num_heads) ** -0.5
+        if key.size(-1) // self.num_heads != 0:
+            scale = (key.size(-1) // self.num_heads) ** -0.5
+        else:
+            scale = 1
         context, attention = self.sdp_attention(query, key, value, scale)
 
         # concat heads
@@ -160,7 +163,7 @@ class embedding_attention(nn.Module):
     def __init__(self, length, embedding_size):
         super(embedding_attention, self).__init__()
         self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
-        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
+        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=9)
         self.linear1 = nn.Linear(length * embedding_size, 512)
         self.linear2 = nn.Linear(512, 256)
         self.linear3 = nn.Linear(256, 128)
@@ -294,7 +297,7 @@ if __name__ == '__main__':
         # show_features = torch.from_numpy(show_features)
         # show_target = torch.from_numpy(show_target)
 
-    model = pure_embedding(length=45, embedding_size=3)
+    model = embedding_attention(length=45, embedding_size=5)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
