@@ -80,7 +80,10 @@ class multi_heads_self_attention(nn.Module):
         value = value.view(batch_size * self.num_heads, -1, self.dim_per_head)
         query = query.view(batch_size * self.num_heads, -1, self.dim_per_head)
 
-        scale = (key.size(-1) // self.num_heads) ** -0.5
+        if key.size(-1) // self.num_heads != 0:
+            scale = (key.size(-1) // self.num_heads) ** -0.5
+        else:
+            scale = 1
         context, attention = self.sdp_attention(query, key, value, scale)
 
         # concat heads
@@ -221,9 +224,9 @@ class pure_cross(nn.Module):
         return output
 
 class pure_attention(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, num_heads):
         super(pure_attention, self).__init__()
-        self.attention = multi_heads_self_attention(feature_dim=input_dim, num_heads=2)
+        self.attention = multi_heads_self_attention(feature_dim=input_dim, num_heads=num_heads)
         self.linear = nn.Linear(input_dim, 256)
         self.final_linear = nn.Linear(256, 1)
 
@@ -263,9 +266,9 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element(dmax_scale=10).values
-    features = raw[:, :-1]
-    target = raw[:, -1:]
+    raw = read_element(sort=True).values
+    features = raw[:-1, :-1]
+    target = raw[:-1, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print(x_train.shape)
     print(x_test.shape)
@@ -281,7 +284,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = mlp(input_dim=45, output_dim=1)
+    model = pure_attention(input_dim=45, num_heads=9)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
