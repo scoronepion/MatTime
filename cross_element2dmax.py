@@ -284,7 +284,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = pure_attention(input_dim=45, num_heads=9)
+    model = pure_cross(input_dim=45)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
