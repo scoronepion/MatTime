@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import sys
-from big_predata import read_element
+from big_predata import read_element, read_pro_features
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
@@ -266,9 +266,10 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element(sort=True).values
-    features = raw[:-1, :-1]
-    target = raw[:-1, -1:]
+    # raw = read_element(sort=True).values
+    raw = read_pro_features().values
+    features = raw[:, :-1]
+    target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
     print(x_train.shape)
     print(x_test.shape)
@@ -284,7 +285,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = pure_cross(input_dim=45)
+    model = cross_attention(input_dim=6)
     if torch.cuda.is_available():
         model.to(device)
     model.double()

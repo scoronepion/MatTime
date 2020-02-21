@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import re
 import random
+from minepy import MINE
+import pickle
 from sklearn.preprocessing import MinMaxScaler
 
 def get_element_set():
@@ -98,6 +100,38 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
     print('finish read')
     return features.dropna()
 
+def read_pro_features():
+    '''读取计算后特征'''
+    print('Start reading...')
+    raw = pd.read_csv('Dmax-Orignal.csv')
+    raw.drop(raw[raw['Dmax'] == 0].index, inplace=True)
+    raw.drop(raw[raw['Dmax'] == 0.1].index, inplace=True)
+    print(raw.shape)
+    # print(raw[['VEC1', 'sVEC', 'Hfd', 'Tb2', 'Gp1', 'Wd', 'Dmax']].info())
+    # return raw[['VEC1', 'sVEC', 'Hfd', 'Tb2', 'Gp1', 'Wd', 'Dmax']]
+    return raw
+
+def calc_mic():
+    raw = read_pro_features()
+    length = raw.shape[1]
+    res = np.zeros(shape=(length, length))
+    i = 0
+    for item1 in raw.columns:
+        print(i)
+        j = 0
+        for item2 in raw.columns:
+            m = MINE()
+            m.compute_score(raw[item1], raw[item2])
+            res[i][j] = m.mic()
+            j += 1
+        i += 1
+    print(res)
+    with open('pro_features_mic.b', 'wb') as f:
+        pickle.dump(res, f)
+    # print(m.mic())
+
 if __name__ == '__main__':
-    raw = read_element(sort=True)
+    # raw = read_element(sort=True)
     # get_element_set()
+    # read_pro_features()
+    calc_mic()
