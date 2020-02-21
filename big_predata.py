@@ -4,7 +4,10 @@ import re
 import random
 from minepy import MINE
 import pickle
+from matplotlib import pyplot as plt
+import scipy as sc
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
 
 def get_element_set():
     '''获取所有元素集合'''
@@ -111,6 +114,16 @@ def read_pro_features():
     # return raw[['VEC1', 'sVEC', 'Hfd', 'Tb2', 'Gp1', 'Wd', 'Dmax']]
     return raw
 
+def calc_pac():
+    raw = read_pro_features()
+    pca = PCA(n_components=50)
+    # print(raw.drop('Dmax', axis=1).info())
+    new_feature = pca.fit_transform(raw.drop('Dmax', axis=1).values)
+    dmax = np.expand_dims(raw['Dmax'].values, axis=-1)
+    new_raw = np.hstack((new_feature, dmax))
+    print(new_raw)
+    print(new_raw.shape)
+
 def calc_mic():
     raw = read_pro_features()
     length = raw.shape[1]
@@ -130,8 +143,36 @@ def calc_mic():
         pickle.dump(res, f)
     # print(m.mic())
 
+def calc_pear():
+    raw = read_pro_features()
+    length = raw.shape[1]
+    res = np.zeros(shape=(length, length))
+    i = 0
+    for item1 in raw.columns:
+        print(i)
+        j = 0
+        for item2 in raw.columns:
+            m = MINE()
+            res[i][j], _ = sc.stats.pearsonr(raw[item1].values, raw[item2].values)
+            j += 1
+        i += 1
+    print(res)
+    with open('pro_features_pear.b', 'wb') as f:
+        pickle.dump(res, f)
+    # print(m.mic())
+
+def pic():
+    with open('pro_features_pear.b', 'rb') as f:
+        raw = pickle.load(f)
+        print(raw[-1])
+        plt.imshow(raw)
+        plt.savefig('./pics/pear_profeatures.png', dpi=500)
+        plt.show()
+
 if __name__ == '__main__':
     # raw = read_element(sort=True)
     # get_element_set()
     # read_pro_features()
-    calc_mic() 
+    # calc_pear()
+    # pic()
+    calc_pac()
