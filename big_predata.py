@@ -134,4 +134,4 @@ if __name__ == '__main__':
     # raw = read_element(sort=True)
     # get_element_set()
     # read_pro_features()
-    calc_mic()
+    calc_mic() 
