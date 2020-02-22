@@ -1,20 +1,25 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import math
 import numpy as np
+from big_predata import read_element, read_pro_features, calc_pac
+from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+from torch.utils.tensorboard import SummaryWriter
 
 PI = 0.5
 SIGMA_1 = torch.cuda.FloatTensor([math.exp(-0)])
 SIGMA_2 = torch.cuda.FloatTensor([math.exp(-6)])
 
-class Gaussian(object):
+class Gaussian(nn.Module):
     def __init__(self, mu, rho):
         '''重参数技巧'''
-        super().__init__()
+        super(Gaussian, self).__init__()
         self.mu = mu
         self.rho = rho
         # 标准高斯分布
-        self.normal = torch.distributions.normal(0, 1)
+        self.normal = torch.distributions.Normal(0, 1)
 
     @property
     def sigma(self):
@@ -22,7 +27,11 @@ class Gaussian(object):
         return torch.log1p(torch.exp(self.rho))
 
     def sample(self):
-        epsilon = self.normal.sample(self.rho.size())
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
+            epsilon = self.normal.sample(self.rho.size()).to(device)
+        else:
+            epsilon = self.normal.sample(self.rho.size())
         return self.mu + self.sigma * epsilon
     
     def log_prob(self, input):
@@ -30,12 +39,17 @@ class Gaussian(object):
                - torch.log(self.sigma) 
                - ((input - self.mu) ** 2) / (2 * self.sigma ** 2)).sum()
 
-class ScaleMixtureGaussian(object):
+class ScaleMixtureGaussian(nn.Module):
     def __init__(self, pi, sigma1, sigma2):
-        super().__init__()
+        super(ScaleMixtureGaussian, self).__init__()
         self.pi = pi
-        self.sigma1 = sigma1
-        self.sigma2 = sigma2
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
+            self.sigma1 = sigma1.to(device)
+            self.sigma2 = sigma2.to(device)
+        else:
+            self.sigma1 = sigma1
+            self.sigma2 = sigma2
         self.gaussian1 = torch.distributions.Normal(0, sigma1)
         self.gaussian2 = torch.distributions.Normal(0, sigma2)
 
@@ -100,15 +114,15 @@ class BayesianNet(nn.Module):
         return output
 
     def log_prior(self):
-        return self.linear1.log_prior
-               + self.linear2.log_prior
-               + self.linear3.log_prior
+        return self.linear1.log_prior \
+               + self.linear2.log_prior \
+               + self.linear3.log_prior \
                + self.linear4.log_prior
 
     def log_variational_posterior(self):
-        return self.linear1.log_variational_posterior
-               + self.linear2.log_variational_posterior
-               + self.linear3.log_variational_posterior
+        return self.linear1.log_variational_posterior \
+               + self.linear2.log_variational_posterior \
+               + self.linear3.log_variational_posterior \
                + self.linear4.log_variational_posterior
     
     def sample_elbo(self, input, target, samples_num=10):
@@ -122,11 +136,89 @@ class BayesianNet(nn.Module):
         log_prior = log_priors.mean()
         log_variational_posterior = log_variational_posteriors.mean()
         # 计算负对数似然，-log p(D|w)，D 为训练数据，w 为学习的权重。这里可以看成网络输出（output）为均值的，任意设定值（可视为超参数）为方差的高斯分布？（存疑）
-        sigma = float(np.exp(-3))
-        negative_log_likelihood = (-math.log(math.sqrt(2 * math.pi)) 
-                                  - torch.log(sigma) 
-                                  - ((outputs.mean(0) - target) ** 2) / (2 * sigma ** 2)).sum()
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
+            sigma = torch.tensor(np.exp(-3)).to(device)
+            negative_log_likelihood = (-math.log(math.sqrt(2 * math.pi)) \
+                                      - torch.log(sigma) \
+                                      - ((outputs.cpu().mean(0) - target.cpu()) ** 2) / (2 * sigma ** 2)).sum()
+        else:
+            sigma = torch.tensor(np.exp(-3))
+            negative_log_likelihood = (-math.log(math.sqrt(2 * math.pi)) \
+                                    - torch.log(sigma) \
+                                    - ((outputs.mean(0) - target) ** 2) / (2 * sigma ** 2)).sum()
 
         loss = log_variational_posterior - log_prior + negative_log_likelihood
         
-        return loss
+        return loss, log_prior, log_variational_posterior, negative_log_likelihood
+
+def write_weight_histograms(writer, model, epoch):
+    # 权重
+    writer.add_histogram('histogram/w1_mu', model.linear1.weight_mu,epoch)
+    writer.add_histogram('histogram/w1_rho', model.linear1.weight_rho,epoch)
+    writer.add_histogram('histogram/w2_mu', model.linear2.weight_mu,epoch)
+    writer.add_histogram('histogram/w2_rho', model.linear2.weight_rho,epoch)
+    writer.add_histogram('histogram/w3_mu', model.linear3.weight_mu,epoch)
+    writer.add_histogram('histogram/w3_rho', model.linear3.weight_rho,epoch)
+    writer.add_histogram('histogram/w4_mu', model.linear4.weight_mu,epoch)
+    writer.add_histogram('histogram/w4_rho', model.linear4.weight_rho,epoch)
+    # 偏置
+    writer.add_histogram('histogram/b1_mu', model.linear1.bias_mu,epoch)
+    writer.add_histogram('histogram/b1_rho', model.linear1.bias_rho,epoch)
+    writer.add_histogram('histogram/b2_mu', model.linear2.bias_mu,epoch)
+    writer.add_histogram('histogram/b2_rho', model.linear2.bias_rho,epoch)
+    writer.add_histogram('histogram/b3_mu', model.linear3.bias_mu,epoch)
+    writer.add_histogram('histogram/b3_rho', model.linear3.bias_rho,epoch)
+    writer.add_histogram('histogram/b4_mu', model.linear4.bias_mu,epoch)
+    writer.add_histogram('histogram/b4_rho', model.linear4.bias_rho,epoch)
+
+def write_loss_scalars(writer, epoch, loss, log_prior, log_variational_posterior, negative_log_likelihood):
+    writer.add_scalar('logs/loss', loss, epoch)
+    writer.add_scalar('logs/log_prior', log_prior, epoch)
+    writer.add_scalar('logs/log_variational_posterior', log_variational_posterior, epoch)
+    writer.add_scalar('logs/negative_log_likelihood', negative_log_likelihood, epoch)
+
+if __name__ == '__main__':
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+    writer = SummaryWriter('./logs/')
+    raw = read_element(sort=True).values
+    # raw = calc_pac(num=50)
+    features = raw[:-1, :-1]
+    target = raw[:-1, -1:]
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
+    print(x_train.shape)
+    print(x_test.shape)
+
+    if torch.cuda.is_available():
+        x_train = torch.from_numpy(x_train).to(device)
+        x_test = torch.from_numpy(x_test).to(device)
+        y_train = torch.from_numpy(y_train).to(device)
+        y_test = torch.from_numpy(y_test).to(device)
+    else:
+        x_train = torch.from_numpy(x_train)
+        x_test = torch.from_numpy(x_test)
+        y_train = torch.from_numpy(y_train)
+        y_test = torch.from_numpy(y_test)
+
+    model = BayesianNet(features_dim=45)
+    if torch.cuda.is_available():
+        model.to(device)
+    model.double()
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+
+    epoch_num = 50000
+
+    for epoch in range(epoch_num):
+        def closure():
+            print(epoch)
+            model.train()
+            optimizer.zero_grad()
+            write_weight_histograms(writer, model, epoch)
+            loss, log_prior, log_variational_posterior, negative_log_likelihood = model.sample_elbo(x_train, y_train)
+            loss.backward()
+            write_loss_scalars(writer, epoch, loss, log_prior, log_variational_posterior, negative_log_likelihood)
+            return loss
+
+        optimizer.step(closure)

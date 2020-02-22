@@ -114,15 +114,16 @@ def read_pro_features():
     # return raw[['VEC1', 'sVEC', 'Hfd', 'Tb2', 'Gp1', 'Wd', 'Dmax']]
     return raw
 
-def calc_pac():
+def calc_pac(num):
     raw = read_pro_features()
-    pca = PCA(n_components=50)
+    pca = PCA(n_components=num)
     # print(raw.drop('Dmax', axis=1).info())
     new_feature = pca.fit_transform(raw.drop('Dmax', axis=1).values)
     dmax = np.expand_dims(raw['Dmax'].values, axis=-1)
     new_raw = np.hstack((new_feature, dmax))
     print(new_raw)
     print(new_raw.shape)
+    return new_raw
 
 def calc_mic():
     raw = read_pro_features()
