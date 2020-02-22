@@ -148,7 +148,7 @@ class BayesianNet(nn.Module):
                                     - torch.log(sigma) \
                                     - ((outputs.mean(0) - target) ** 2) / (2 * sigma ** 2)).sum()
 
-        loss = log_variational_posterior - log_prior + negative_log_likelihood
+        loss = -(log_variational_posterior - log_prior + negative_log_likelihood)
         
         return loss, log_prior, log_variational_posterior, negative_log_likelihood
 
@@ -212,7 +212,6 @@ if __name__ == '__main__':
 
     for epoch in range(epoch_num):
         def closure():
-            print(epoch)
             model.train()
             optimizer.zero_grad()
             write_weight_histograms(writer, model, epoch)
@@ -222,3 +221,23 @@ if __name__ == '__main__':
             return loss
 
         optimizer.step(closure)
+
+        if epoch % 10 == 9:
+            print('epoch : ', epoch)
+            model.eval()
+            ensemble_size = 10
+            pred = 0
+            for i in range(10):
+                # 权值分布采样网络结果，模拟 ensemble learning
+                pred += model(x_test, sample=True)
+            # 最后一个元素记录全职分布均值网络结果
+            pred += model(x_test, sample=False)
+            pred /= 10
+            if torch.cuda.is_available():
+                r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
+                writer.add_scalar('R2', r2, epoch)
+                print('r2:', r2)
+            else:
+                r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
+                writer.add_scalar('R2', r2, epoch)
+                print('r2:', r2)
