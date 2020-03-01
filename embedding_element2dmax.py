@@ -163,7 +163,7 @@ class embedding_attention(nn.Module):
     def __init__(self, length, embedding_size):
         super(embedding_attention, self).__init__()
         self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
-        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=9)
+        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=3)
         self.linear_final = nn.Linear(length * embedding_size, 1)
 
     def forward(self, input):
@@ -194,7 +194,7 @@ class embedding_attention_mlp(nn.Module):
     def __init__(self, length, embedding_size):
         super(embedding_attention_mlp, self).__init__()
         self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
-        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=2)
+        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=9)
         self.layer_norm = nn.LayerNorm(length * embedding_size)
         self.linear1 = nn.Linear(length * embedding_size, 512)
         self.linear2 = nn.Linear(512, 256)
@@ -269,7 +269,7 @@ if __name__ == '__main__':
 
     features = raw[:-1, :-1]
     target = raw[:-1, -1:]
-    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
     print(x_train.shape)
     print(x_test.shape)
 
@@ -288,14 +288,23 @@ if __name__ == '__main__':
         # show_features = torch.from_numpy(show_features)
         # show_target = torch.from_numpy(show_target)
 
-    model = embedding_attention(length=45, embedding_size=5)
+    model = embedding_attention(length=45, embedding_size=9)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
+    # # ensemble models
+    # if torch.cuda.is_available():
+    #     models = [embedding_attention(length=45, embedding_size=9).to(device).double() for i in range(10)]
+    # else:
+    #     models = [embedding_attention(length=45, embedding_size=9).double() for i in range(10)]
+    # criterion = nn.MSELoss()
+    # optimizer = optim.Adam([{"params": item.parameters()} for item in models], lr=0.0001)
+
     epoch_num = 50000
+    save_flag = False
 
     for epoch in range(epoch_num):
         def closure():
@@ -307,6 +316,14 @@ if __name__ == '__main__':
             # loss_list.append(loss.data.item())
             loss.backward()
             return loss
+
+        # ensemble way
+        # def closure():
+        #     optimizer.zero_grad()
+        #     for item in models:
+        #         out = item(x_train)
+        #         loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
+        #         loss.backward()
 
         optimizer.step(closure)
 
@@ -321,6 +338,8 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
+                if r2 > 0.86:
+                    save_flag = True
                 # show_case_result = torch.squeeze(show_pred.cpu()).detach().numpy()
                 # print('show case:', show_case_result)
                 # writer.add_scalar('pred/-3', show_case_result[-3], epoch)
@@ -330,6 +349,8 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
+                if r2 > 0.86:
+                    save_flag = True
                 # show_case_result = torch.squeeze(show_pred).detach().numpy()
                 # print('show case:', show_case_result)
                 # writer.add_scalar('pred/-3', show_case_result[-3], epoch)
@@ -337,4 +358,34 @@ if __name__ == '__main__':
                 # writer.add_scalar('pred/-1', show_case_result[-1], epoch)
             # print('weight: ', model.embedding.embedding.weight)
 
-    # f.close()
+        if save_flag:
+            torch.save(model, './models/embedding_attention_086.bin')
+            print('model save succeed')
+            break
+
+            # ensemble way
+            # loss_list = []
+            # r2_list = []
+            # pred_res = 0
+            # for item in models:
+            #     pred = item(x_test)
+            #     loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
+            #     loss_list.append(loss.data.item())
+
+            #     if torch.cuda.is_available():
+            #         # r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
+            #         # r2_list.append(r2)
+            #         pred_res += torch.squeeze(pred.cpu()).detach().numpy()
+            #     else:
+            #         # r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
+            #         # r2_list.append(r2)
+            #         pred_res += torch.squeeze(pred).detach().numpy()
+
+            # pred_res /= float(len(models))
+            # if torch.cuda.is_available():
+            #     r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), pred_res)
+            # else:
+            #     r2 = r2_score(torch.squeeze(y_test).detach().numpy(), pred_res)
+            # print('loss = ', loss_list)
+            # print('r2 = ', r2)
+            # writer.add_scalar('R2', r2, epoch)

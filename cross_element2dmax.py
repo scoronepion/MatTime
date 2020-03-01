@@ -162,7 +162,7 @@ class cross_attention(nn.Module):
         self.cross2 = cross_layer(input_dim)
         self.cross3 = cross_layer(input_dim)
         self.cross4 = cross_layer(input_dim)
-        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=2)
+        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=9)
         self.linear1 = nn.Linear(input_dim * 2, 256)
         self.final_linear = nn.Linear(256, 1)
 
@@ -266,11 +266,11 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    # raw = read_element(sort=True).values
-    raw = calc_pac(num=50)
-    features = raw[:, :-1]
-    target = raw[:, -1:]
-    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.4)
+    raw = read_element(sort=True).values
+    # raw = calc_pac(num=50)
+    features = raw[:-1, :-1]
+    target = raw[:-1, -1:]
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
     print(x_train.shape)
     print(x_test.shape)
 
@@ -285,7 +285,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = pure_attention(input_dim=50, num_heads=5)
+    model = cross_attention(input_dim=45)
     if torch.cuda.is_available():
         model.to(device)
     model.double()

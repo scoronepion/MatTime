@@ -171,9 +171,10 @@ def pic():
         plt.show()
 
 if __name__ == '__main__':
-    # raw = read_element(sort=True)
+    raw = read_element(sort=True)
+    print(raw.info())
     # get_element_set()
     # read_pro_features()
     # calc_pear()
     # pic()
-    calc_pac()
+    # calc_pac()
