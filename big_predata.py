@@ -71,9 +71,8 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
             details[element] = percentage
 
         features = features.append(details, ignore_index=True)
-
+    
     features = features.fillna(0.0)
-    # features += 0.00001
     if noise:
         features = features.applymap(lambda x: x + abs(random.gauss(0, 0.0001)))
 
@@ -84,7 +83,7 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
     if sort:
         features.sort_values("Dmax", inplace=True)
         features = features.reset_index(drop=True)
-
+    # print(features.iloc[550:,:].info())
     features.dropna(inplace=True)
     # 负采样
     if nega_sampling:
@@ -172,7 +171,8 @@ def pic():
 
 if __name__ == '__main__':
     raw = read_element(sort=True)
-    print(raw.info())
+    raw.to_csv('trans_dmax.csv')
+    # print(raw.info())
     # get_element_set()
     # read_pro_features()
     # calc_pear()
