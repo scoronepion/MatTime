@@ -83,7 +83,7 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
     if sort:
         features.sort_values("Dmax", inplace=True)
         features = features.reset_index(drop=True)
-    # print(features.iloc[550:,:].info())
+    # print(features.iloc[590:,:].info())
     features.dropna(inplace=True)
     # 负采样
     if nega_sampling:
@@ -171,7 +171,7 @@ def pic():
 
 if __name__ == '__main__':
     raw = read_element(sort=True)
-    raw.to_csv('trans_dmax.csv')
+    raw.to_csv('trans_dmax.csv', index=False)
     # print(raw.info())
     # get_element_set()
     # read_pro_features()

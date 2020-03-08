@@ -146,8 +146,8 @@ def calc_func(x):
     input[21] = x[1]
     input[22] = x[2]
     input[23] = x[3]
-    input[32] = x[4]
-    input[34] = x[5]
+    input[34] = x[4]
+    input[39] = x[5]
     input[41] = x[6]
     input[44] = x[7]
     x = input
@@ -193,16 +193,17 @@ def result_process():
 
 if __name__ == '__main__':
     # Top element (start from 0): Cu-2, Al-22, Zr-23, Ni-21, Fe-7, Mg-39, B-19
-    # Tail 100 top element (start from 0): Cu-2, La-21, Al-22, Zr-23, Mg-32, Y-34, Ag-41, Co-44
-    # pso = PSO(func=calc_func, dim=8, pop=400, max_iter=200, lb=np.zeros(8), ub=np.ones(8)*100)
-    # pso.run()
-    # print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
+    # Tail 100 top element (start from 0): Cu-2, La-21, Al-22, Zr-23, Y-34, Mg-39, Ag-41, Co-44
+    pso = PSO(func=calc_func, dim=8, pop=400, max_iter=400, lb=np.zeros(8), ub=np.ones(8)*100)
+    pso.run()
+    print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
     # result_process()
 
-    raw = np.array([0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529])
-    print(raw / raw.sum())
+    # raw = np.array([0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529])
+    # print(raw / raw.sum())
 
     # tail result 
     # 1. raw = [0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529]
+    #    dmax = 18.3781
     #    Cu:0, La:0.0661, Al:0, Zr:0.5675, Mg:0.0468, Y:0.1471, Ag:0.0494, Co:0.1231
-    #    La
+    #    Zr57Y15Co12La7Ag5Mg4
