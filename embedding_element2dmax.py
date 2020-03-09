@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import sys
-from big_predata import read_element
+from big_predata import read_element, read_over_element, read_cmp
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
@@ -260,15 +260,16 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element(sort=True).values
+    # raw = read_element(sort=True).values
+    raw = read_cmp().values
     # raw = np.expand_dims(raw, axis=1)
 
     # # 最后三条作为展示集
     # show_features = raw[-3:, :-1]
     # show_target = raw[-3:, -1:]
 
-    features = raw[:-1, :-1]
-    target = raw[:-1, -1:]
+    features = raw[:, :-1]
+    target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
     print(x_train.shape)
     print(x_test.shape)
@@ -288,12 +289,12 @@ if __name__ == '__main__':
         # show_features = torch.from_numpy(show_features)
         # show_target = torch.from_numpy(show_target)
 
-    model = embedding_attention(length=45, embedding_size=9)
+    model = embedding_attention(length=44, embedding_size=9)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.00001)
 
     # # ensemble models
     # if torch.cuda.is_available():
@@ -338,7 +339,7 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.86:
+                if r2 > 0.83:
                     save_flag = True
                 # show_case_result = torch.squeeze(show_pred.cpu()).detach().numpy()
                 # print('show case:', show_case_result)
@@ -349,7 +350,7 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.86:
+                if r2 > 0.83:
                     save_flag = True
                 # show_case_result = torch.squeeze(show_pred).detach().numpy()
                 # print('show case:', show_case_result)
@@ -359,7 +360,7 @@ if __name__ == '__main__':
             # print('weight: ', model.embedding.embedding.weight)
 
         if save_flag:
-            torch.save(model, './models/embedding_attention_086.bin')
+            torch.save(model, './models/embedding_attention_new_083.bin')
             print('model save succeed')
             break
 

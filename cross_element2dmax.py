@@ -162,7 +162,7 @@ class cross_attention(nn.Module):
         self.cross2 = cross_layer(input_dim)
         self.cross3 = cross_layer(input_dim)
         self.cross4 = cross_layer(input_dim)
-        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=9)
+        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=4)
         self.linear1 = nn.Linear(input_dim * 2, 256)
         self.final_linear = nn.Linear(256, 1)
 
@@ -174,6 +174,28 @@ class cross_attention(nn.Module):
         attention_out, _ = self.attention_layer(input, input, input)
         cat_res = torch.cat((cross_out, attention_out), dim=-1)
         output = nn.functional.relu(self.linear1(cat_res))
+        output = self.final_linear(output)
+
+        return output
+
+class another_cross_attention(nn.Module):
+    def __init__(self, input_dim):
+        super(another_cross_attention, self).__init__()
+        self.cross1 = cross_layer(input_dim)
+        self.cross2 = cross_layer(input_dim)
+        self.cross3 = cross_layer(input_dim)
+        self.cross4 = cross_layer(input_dim)
+        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=4)
+        self.linear = nn.Linear(input_dim, 256)
+        self.final_linear = nn.Linear(256, 1)
+
+    def forward(self, input):
+        cross_out = self.cross1(input, input)
+        cross_out = self.cross2(input, cross_out)
+        cross_out = self.cross3(input, cross_out)
+        cross_out = self.cross4(input, cross_out)
+        attention_out, _ = self.attention_layer(cross_out, cross_out, cross_out)
+        output = nn.functional.relu(self.linear(attention_out))
         output = self.final_linear(output)
 
         return output
@@ -266,10 +288,11 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
-    raw = read_element(sort=True).values
+    # raw = read_element(sort=True).values
+    raw = read_pro_features().values
     # raw = calc_pac(num=50)
-    features = raw[:-1, :-1]
-    target = raw[:-1, -1:]
+    features = raw[:, :-1]
+    target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
     print(x_train.shape)
     print(x_test.shape)
@@ -285,7 +308,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = cross_attention(input_dim=45)
+    model = another_cross_attention(input_dim=32)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
@@ -293,6 +316,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     epoch_num = 50000
+    save_flag = False
 
     for epoch in range(epoch_num):
         def closure():
@@ -317,7 +341,16 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
+                if r2 > 0.81:
+                    save_flag = True
             else:
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
+                if r2 > 0.81:
+                    save_flag = True
+
+        if save_flag:
+            torch.save(model, './models/cross_attention_new_081.bin')
+            print('model save succeed')
+            break

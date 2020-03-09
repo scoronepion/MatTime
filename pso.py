@@ -154,7 +154,7 @@ def calc_func(x):
     # 归一化
     x = x / x.sum()
     x = torch.from_numpy(x).view(1, -1)
-    model = torch.load('models/embedding_attention_08502.bin', map_location='cpu')
+    model = torch.load('models/embedding_attention_0953.bin', map_location='cpu')
     return -torch.squeeze(model(x)).detach().numpy()
 
 def result_process():

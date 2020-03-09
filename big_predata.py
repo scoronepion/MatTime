@@ -102,13 +102,31 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
     print('finish read')
     return features.dropna()
 
+def read_over_element():
+    print("start reading...")
+    raw = pd.read_csv('trans_dmax.csv')
+    print('finish read')
+    return raw.dropna()
+
+def read_cmp():
+    print('start reading...')
+    raw = pd.read_csv('cmp-T.csv')
+    # print(raw.astype('float64').info())
+    return raw.astype('float64')
+
 def read_pro_features():
     '''读取计算后特征'''
     print('Start reading...')
-    raw = pd.read_csv('Dmax-Orignal.csv')
+    raw = pd.read_csv('full-Dmax.csv')
     raw.drop(raw[raw['Dmax'] == 0].index, inplace=True)
     raw.drop(raw[raw['Dmax'] == 0.1].index, inplace=True)
+    del raw['Alloy']
+    del raw['Tg']
+    del raw['Tx']
+    del raw['Tl']
+    # raw = raw.iloc[:, [10, 28, 30, 17, 18, 2, 0, 27, 16, 32]]
     print(raw.shape)
+
     # print(raw[['VEC1', 'sVEC', 'Hfd', 'Tb2', 'Gp1', 'Wd', 'Dmax']].info())
     # return raw[['VEC1', 'sVEC', 'Hfd', 'Tb2', 'Gp1', 'Wd', 'Dmax']]
     return raw
@@ -170,11 +188,13 @@ def pic():
         plt.show()
 
 if __name__ == '__main__':
-    raw = read_element(sort=True)
-    raw.to_csv('trans_dmax.csv', index=False)
+    # raw = read_element(sort=True)
+    # raw.to_csv('trans_dmax.csv', index=False)
     # print(raw.info())
     # get_element_set()
     # read_pro_features()
     # calc_pear()
     # pic()
     # calc_pac()
+    raw = read_pro_features()
+    print(raw.info())
