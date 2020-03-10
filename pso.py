@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from sko.PSO import PSO
+from itertools import combinations
+
+current_combins = None
 
 class chemical_embedding(nn.Module):
     '''返回元素 embedding 表示'''
@@ -140,22 +143,21 @@ class embedding_attention(nn.Module):
         return output
 
 def calc_func(x):
-    input = np.zeros(45)
+    input = np.zeros(44)
+    element_dict = {'Fe': 13, 'Cu': 10, 'Al': 1, 'Mg': 22, 'Co': 8, 'Ni': 27, 'Cr': 9, 'Ti': 37}
+    x = x / x.sum() * 100
+    # print(x.sum())
+    i = 0
     # 修改元素
-    input[2] = x[0]
-    input[21] = x[1]
-    input[22] = x[2]
-    input[23] = x[3]
-    input[34] = x[4]
-    input[39] = x[5]
-    input[41] = x[6]
-    input[44] = x[7]
-    x = input
-    # 归一化
-    x = x / x.sum()
-    x = torch.from_numpy(x).view(1, -1)
-    model = torch.load('models/embedding_attention_0953.bin', map_location='cpu')
-    return -torch.squeeze(model(x)).detach().numpy()
+    global current_combins
+    if current_combins is not None:
+        for item in current_combins:
+            input[element_dict[item]] = x[i]
+            i += 1
+        x = input
+        x = torch.from_numpy(x).view(1, -1)
+        model = torch.load('models/embedding_attention_new_08210.bin', map_location='cpu')
+        return -torch.squeeze(model(x)).detach().numpy()
 
 def result_process():
     #     best_x is  [0.13634683 0.15337651 1.         1.         1.         1.
@@ -191,16 +193,28 @@ def result_process():
     data /= data.sum()
     print(data)
 
+def calc_pso(num):
+    combins = [c for c in combinations(['Fe', 'Cu', 'Al', 'Mg', 'Co', 'Ni', 'Cr', 'Ti'], num)]
+    for item in combins:
+        global current_combins
+        current_combins = item
+        print('current combins: ', item)
+        pso = PSO(func=calc_func, dim=num, pop=400, max_iter=400, lb=np.zeros(num), ub=np.ones(num)*100)
+        pso.run()
+        print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
+
 if __name__ == '__main__':
     # Top element (start from 0): Cu-2, Al-22, Zr-23, Ni-21, Fe-7, Mg-39, B-19
     # Tail 100 top element (start from 0): Cu-2, La-21, Al-22, Zr-23, Y-34, Mg-39, Ag-41, Co-44
-    pso = PSO(func=calc_func, dim=8, pop=400, max_iter=400, lb=np.zeros(8), ub=np.ones(8)*100)
-    pso.run()
-    print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
+    # pso = PSO(func=calc_func, dim=8, pop=400, max_iter=400, lb=np.zeros(8), ub=np.ones(8)*100)
+    # pso.run()
+    # print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
     # result_process()
 
     # raw = np.array([0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529])
     # print(raw / raw.sum())
+
+    calc_pso(3)
 
     # tail result 
     # 1. raw = [0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529]

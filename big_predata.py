@@ -196,5 +196,6 @@ if __name__ == '__main__':
     # calc_pear()
     # pic()
     # calc_pac()
-    raw = read_pro_features()
+    # raw = read_pro_features()
+    raw = read_cmp()
     print(raw.info())
