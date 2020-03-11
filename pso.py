@@ -194,14 +194,16 @@ def result_process():
     print(data)
 
 def calc_pso(num):
+    f = open("./3_elements_result.info", 'w+')
     combins = [c for c in combinations(['Fe', 'Cu', 'Al', 'Mg', 'Co', 'Ni', 'Cr', 'Ti'], num)]
     for item in combins:
         global current_combins
         current_combins = item
-        print('current combins: ', item)
+        print('current combins: ', item, file=f)
         pso = PSO(func=calc_func, dim=num, pop=400, max_iter=400, lb=np.zeros(num), ub=np.ones(num)*100)
         pso.run()
-        print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
+        print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y, file=f)
+    f.close()
 
 if __name__ == '__main__':
     # Top element (start from 0): Cu-2, Al-22, Zr-23, Ni-21, Fe-7, Mg-39, B-19
