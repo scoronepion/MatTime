@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import pandas as pd
-from sko.PSO import PSO
+# from sko.PSO import PSO
 from big_predata import read_element, read_over_element, read_cmp
 from itertools import combinations
 from sklearn.model_selection import train_test_split
@@ -179,6 +179,7 @@ def calc_r2():
             break
 
 if __name__ == '__main__':
-    train_df = pd.read_csv('Full_Dmax_train_pred.csv')
+    train_df = pd.read_csv('Full_Dmax_test_pred.csv')
     print(train_df.info())
-    sns.lmplot(x="y_train", y="train_pred", data=train_df)
+    plt = sns.lmplot(x="y_test", y="test_pred", data=train_df)
+    plt.savefig('2.png')
