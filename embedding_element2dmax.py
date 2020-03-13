@@ -268,8 +268,8 @@ if __name__ == '__main__':
     # show_features = raw[-3:, :-1]
     # show_target = raw[-3:, -1:]
 
-    features = raw[:-1, :-1]
-    target = raw[:-1, -1:]
+    features = raw[:, :-1]
+    target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
     print(x_train.shape)
     print(x_test.shape)
@@ -360,7 +360,7 @@ if __name__ == '__main__':
             # print('weight: ', model.embedding.embedding.weight)
 
         if save_flag:
-            torch.save(model, './models/embedding_attention_Full_Dmax_083.bin')
+            torch.save(model, './models/embedding_attention_Full_Dmax_75_083.bin')
             print('model save succeed')
             break
 

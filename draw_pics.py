@@ -150,36 +150,44 @@ def calc_r2():
     raw = read_cmp().values
     features = raw[:-1, :-1]
     target = raw[:-1, -1:]
-    while True:
+    model = torch.load('models/embedding_attention_Full_Dmax_no75_08300.bin', map_location='cpu')
+    df = pd.DataFrame()
+    train_r2_list = []
+    test_r2_list = []
+    epoch = 100
+    while epoch > 0:
         x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
         x_train = torch.from_numpy(x_train)
         x_test = torch.from_numpy(x_test)
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
-        model = torch.load('models/embedding_attention_Full_Dmax_no75_08300.bin', map_location='cpu')
         train_pred = torch.squeeze(model(x_train)).detach().numpy()
         test_pred = torch.squeeze(model(x_test)).detach().numpy()
 
         train_r2 = r2_score(torch.squeeze(y_train).detach().numpy(), train_pred)
         test_r2 = r2_score(torch.squeeze(y_test).detach().numpy(), test_pred)
-        print(train_r2)
-        print(test_r2)
+        # print(train_r2)
+        # print(test_r2)
+        train_r2_list.append(train_r2)
+        test_r2_list.append(test_r2)
+        epoch -= 1
 
-        flag = input('save?')
-        if flag == '1':
-            print('saving...')
-            train_df = pd.DataFrame()
-            train_df['y_train'] = torch.squeeze(y_train).detach().numpy()
-            train_df['train_pred'] = train_pred
-            test_df = pd.DataFrame()
-            test_df['y_test'] = torch.squeeze(y_test).detach().numpy()
-            test_df['test_pred'] = test_pred
-            train_df.to_csv('Full_Dmax_train_pred.csv', index=False)
-            test_df.to_csv('Full_Dmax_test_pred.csv', index=False)
-            break
+        # train_df = pd.DataFrame()
+        # train_df['y_train'] = torch.squeeze(y_train).detach().numpy()
+        # train_df['train_pred'] = train_pred
+        # test_df = pd.DataFrame()
+        # test_df['y_test'] = torch.squeeze(y_test).detach().numpy()
+        # test_df['test_pred'] = test_pred
+        # train_df.to_csv('Full_Dmax_train_pred.csv', index=False)
+        # test_df.to_csv('Full_Dmax_test_pred.csv', index=False)
+
+    df['train_r2'] = train_r2_list
+    df['test_r2'] = test_r2_list
+    df.to_csv('100_r2.csv', index=False)
 
 if __name__ == '__main__':
-    train_df = pd.read_csv('Full_Dmax_test_pred.csv')
-    print(train_df.info())
-    plt = sns.lmplot(x="y_test", y="test_pred", data=train_df)
-    plt.savefig('2.png')
+    # train_df = pd.read_csv('Full_Dmax_test_pred.csv')
+    # print(train_df.info())
+    # plt = sns.lmplot(x="y_test", y="test_pred", data=train_df)
+    # plt.savefig('2.png')
+    calc_r2()
