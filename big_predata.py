@@ -110,7 +110,7 @@ def read_over_element():
 
 def read_cmp():
     print('start reading...')
-    raw = pd.read_csv('cmp-T.csv')
+    raw = pd.read_csv('Full_Dmax_Cmp.csv')
     # print(raw.astype('float64').info())
     return raw.astype('float64')
 
@@ -198,4 +198,4 @@ if __name__ == '__main__':
     # calc_pac()
     # raw = read_pro_features()
     raw = read_cmp()
-    print(raw.info())
+    print(raw.tail())

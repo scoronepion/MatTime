@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import pandas as pd
 from sko.PSO import PSO
 from itertools import combinations
 
@@ -144,7 +145,7 @@ class embedding_attention(nn.Module):
 
 def calc_func(x):
     input = np.zeros(44)
-    element_dict = {'Fe': 13, 'Cu': 10, 'Al': 1, 'Mg': 22, 'Co': 8, 'Ni': 27, 'Cr': 9, 'Ti': 37}
+    element_dict = {'Fe': 13, 'Cu': 10, 'Al': 1, 'Mg': 22, 'Co': 8, 'Ni': 27, 'Cr': 9, 'Ti': 37, 'Ag': 0}
     x = x / x.sum() * 100
     # print(x.sum())
     i = 0
@@ -205,18 +206,34 @@ def calc_pso(num):
         print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y, file=f)
     f.close()
 
+def verify0311():
+    element_dict = {'Fe': 13, 'Cu': 10, 'Al': 1, 'Mg': 22, 'Co': 8, 'Ni': 27, 'Cr': 9, 'Ti': 37, 'Ag': 0, 'Be': 4, 'Gd': 15, 'Hf': 16, 'P': 28, 'Pd': 29, 'Sc': 31, 'Y': 40, 'Zr': 43}
+    raw = pd.read_csv('verify0311.csv')
+    res = []
+    for index, row in raw.iterrows():
+        input = np.zeros(44)
+        comp = row['5'][1:-2].split()
+        input[element_dict[row['1']]] = comp[0]
+        input[element_dict[row['2']]] = comp[1]
+        input[element_dict[row['3']]] = comp[2]
+        input[element_dict[row['4']]] = comp[3]
+        res.append(input)
+    for item in res:
+        x = torch.from_numpy(item).view(1, -1)
+        model = torch.load('models/embedding_attention_new_08210.bin', map_location='cpu')
+        print(torch.squeeze(model(x)).detach().numpy())
+    # print(res)
+
 if __name__ == '__main__':
     # Top element (start from 0): Cu-2, Al-22, Zr-23, Ni-21, Fe-7, Mg-39, B-19
     # Tail 100 top element (start from 0): Cu-2, La-21, Al-22, Zr-23, Y-34, Mg-39, Ag-41, Co-44
     # pso = PSO(func=calc_func, dim=8, pop=400, max_iter=400, lb=np.zeros(8), ub=np.ones(8)*100)
     # pso.run()
     # print('best_x is ', pso.gbest_x, 'best_y is', pso.gbest_y)
-    # result_process()
 
-    # raw = np.array([0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529])
-    # print(raw / raw.sum())
+    # calc_pso(3)
 
-    calc_pso(3)
+    verify0311()
 
     # tail result 
     # 1. raw = [0., 11.64490368, 0., 100., 8.24245089, 25.9136744, 8.70419478, 21.68054529]
