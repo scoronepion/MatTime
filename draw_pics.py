@@ -154,7 +154,7 @@ def calc_r2():
     df = pd.DataFrame()
     train_r2_list = []
     test_r2_list = []
-    epoch = 100
+    epoch = 500
     while epoch > 0:
         x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
         x_train = torch.from_numpy(x_train)
