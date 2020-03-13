@@ -154,7 +154,7 @@ def calc_r2():
     df = pd.DataFrame()
     train_r2_list = []
     test_r2_list = []
-    epoch = 500
+    epoch = 1000
     while epoch > 0:
         x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
         x_train = torch.from_numpy(x_train)
@@ -183,7 +183,7 @@ def calc_r2():
 
     df['train_r2'] = train_r2_list
     df['test_r2'] = test_r2_list
-    df.to_csv('100_r2.csv', index=False)
+    df.to_csv('1000_r2.csv', index=False)
 
 if __name__ == '__main__':
     # train_df = pd.read_csv('Full_Dmax_test_pred.csv')
