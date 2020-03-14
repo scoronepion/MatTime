@@ -150,11 +150,11 @@ def calc_r2():
     raw = read_cmp().values
     features = raw[:-1, :-1]
     target = raw[:-1, -1:]
-    model = torch.load('models/embedding_attention_Full_Dmax_no75_08300.bin', map_location='cpu')
+    model = torch.load('models/embedding_attention_Full_Dmax_no75_scaled_07952.bin', map_location='cpu')
     df = pd.DataFrame()
     train_r2_list = []
     test_r2_list = []
-    epoch = 1000
+    epoch = 500
     while epoch > 0:
         x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
         x_train = torch.from_numpy(x_train)
@@ -183,7 +183,7 @@ def calc_r2():
 
     df['train_r2'] = train_r2_list
     df['test_r2'] = test_r2_list
-    df.to_csv('1000_r2.csv', index=False)
+    df.to_csv('scaled_500_r2.csv', index=False)
 
 if __name__ == '__main__':
     # train_df = pd.read_csv('Full_Dmax_test_pred.csv')

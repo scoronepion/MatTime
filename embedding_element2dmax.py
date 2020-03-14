@@ -268,17 +268,54 @@ if __name__ == '__main__':
     # show_features = raw[-3:, :-1]
     # show_target = raw[-3:, -1:]
 
-    features = raw[:, :-1]
-    target = raw[:, -1:]
+    features = raw[:-1, :-1]
+    target = raw[:-1, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
     print(x_train.shape)
     print(x_test.shape)
+
+    # scale for loss
+    scaled_vector = y_train.copy()
+    sum_list = [0] * 5
+    for i in range(scaled_vector.shape[0]):
+        if 0.2 <= scaled_vector[i] <= 1.5:
+            sum_list[0] += 1
+            scaled_vector[i] = 1
+        elif 2 <= scaled_vector[i] <= 2.8:
+            sum_list[1] += 1
+            scaled_vector[i] = 2
+        elif 3 <= scaled_vector[i] <= 4.5:
+            sum_list[2] += 1
+            scaled_vector[i] = 3
+        elif 5 <= scaled_vector[i] <= 8:
+            sum_list[3] += 1
+            scaled_vector[i] = 4
+        else:
+            sum_list[4] += 1
+            scaled_vector[i] = 5
+    scale_list = [0] * 5
+    for i in range(5):
+        scale_list[i] = float(sum(sum_list)) / float(sum_list[i])
+    for i in range(scaled_vector.shape[0]):
+        if scaled_vector[i] == 1:
+            scaled_vector[i] = scale_list[0]
+        elif scaled_vector[i] == 2:
+            scaled_vector[i] = scale_list[1]
+        elif scaled_vector[i] == 3:
+            scaled_vector[i] = scale_list[2]
+        elif scaled_vector[i] == 4:
+            scaled_vector[i] = scale_list[3]
+        else:
+            scaled_vector[i] = scale_list[4]
+
+    # print(scaled_vector)
 
     if torch.cuda.is_available():
         x_train = torch.from_numpy(x_train).to(device)
         x_test = torch.from_numpy(x_test).to(device)
         y_train = torch.from_numpy(y_train).to(device)
         y_test = torch.from_numpy(y_test).to(device)
+        scaled_vector = torch.from_numpy(scaled_vector).to(device)
         # show_features = torch.from_numpy(show_features).to(device)
         # show_target = torch.from_numpy(show_target).to(device)
     else:
@@ -286,6 +323,7 @@ if __name__ == '__main__':
         x_test = torch.from_numpy(x_test)
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
+        scaled_vector = torch.from_numpy(scaled_vector)
         # show_features = torch.from_numpy(show_features)
         # show_target = torch.from_numpy(show_target)
 
@@ -311,7 +349,9 @@ if __name__ == '__main__':
         def closure():
             optimizer.zero_grad()
             out = model(x_train)
-            loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
+            loss = (scaled_vector * (torch.squeeze(out) - torch.squeeze(y_train)) ** 2).mean()
+            # loss = torch.mean((torch.squeeze(out) - torch.squeeze(y_train)) ** 2)
+            # loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
             writer.add_scalar('Loss/train', loss.data.item(), epoch)
             # print('loss:', loss.data.item())
             # loss_list.append(loss.data.item())
@@ -332,14 +372,16 @@ if __name__ == '__main__':
             print('epoch : ', epoch)
             pred = model(x_test)
             # show_pred = model(show_features)
-            loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
+            # loss = criterion(torch.squeeze(pred), torch.squeeze(y_test))
+            loss = (scaled_vector * (torch.squeeze(pred) - torch.squeeze(y_test)) ** 2).mean()
+            # loss = torch.mean((torch.squeeze(pred) - torch.squeeze(y_test)) ** 2)
             writer.add_scalar('Loss/test', loss.data.item(), epoch)
             print('test loss:', loss.data.item())
             if torch.cuda.is_available():
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.83:
+                if r2 > 0.80:
                     save_flag = True
                 # show_case_result = torch.squeeze(show_pred.cpu()).detach().numpy()
                 # print('show case:', show_case_result)
@@ -350,7 +392,7 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.83:
+                if r2 > 0.80:
                     save_flag = True
                 # show_case_result = torch.squeeze(show_pred).detach().numpy()
                 # print('show case:', show_case_result)
@@ -360,7 +402,7 @@ if __name__ == '__main__':
             # print('weight: ', model.embedding.embedding.weight)
 
         if save_flag:
-            torch.save(model, './models/embedding_attention_Full_Dmax_75_083.bin')
+            torch.save(model, './models/embedding_attention_Full_Dmax_no75_scaled_080.bin')
             print('model save succeed')
             break
 
