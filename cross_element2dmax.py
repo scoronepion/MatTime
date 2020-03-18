@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import sys
-from big_predata import read_element, read_pro_features, calc_pac
+from big_predata import read_element, read_pro_features, calc_pac, read_atomic_features
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
@@ -185,7 +185,7 @@ class another_cross_attention(nn.Module):
         self.cross2 = cross_layer(input_dim)
         self.cross3 = cross_layer(input_dim)
         self.cross4 = cross_layer(input_dim)
-        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=4)
+        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=2)
         self.linear = nn.Linear(input_dim, 256)
         self.final_linear = nn.Linear(256, 1)
 
@@ -289,13 +289,13 @@ if __name__ == '__main__':
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
     # raw = read_element(sort=True).values
-    raw = read_pro_features().values
+    raw = read_atomic_features().values
     # raw = calc_pac(num=50)
     features = raw[:, :-1]
     target = raw[:, -1:]
-    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.3)
     print(x_train.shape)
-    print(x_test.shape)
+    print(y_test.shape)
 
     if torch.cuda.is_available():
         x_train = torch.from_numpy(x_train).to(device)
@@ -308,7 +308,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = another_cross_attention(input_dim=32)
+    model = another_cross_attention(input_dim=x_train.size[0])
     if torch.cuda.is_available():
         model.to(device)
     model.double()
@@ -351,6 +351,6 @@ if __name__ == '__main__':
                     save_flag = True
 
         if save_flag:
-            torch.save(model, './models/cross_attention_new_081.bin')
+            torch.save(model, './models/cross_attention_atomic_081.bin')
             print('model save succeed')
             break

@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 
 def get_element_set():
     '''获取所有元素集合'''
-    raw = pd.read_csv('dmax.csv')
+    raw = pd.read_csv('clean_gfa.csv')
     elements_set = set()
 
     pattern = re.compile(r'([A-Z][a-z]*)([0-9]*\.*[0-9]*)')
@@ -21,7 +21,9 @@ def get_element_set():
         for i in range(len(result)):
             element = result[i][0]
             elements_set.add(element)
-    print(elements_set)
+    res = list(elements_set)
+    res.sort()
+    print(res)
 
 def read_element(noise=False, sort=False, rare_element_scaler=None, nega_sampling=False, dmax_scale=None):
     '''直接返回元素含量百分比'''
@@ -98,6 +100,61 @@ def read_element(noise=False, sort=False, rare_element_scaler=None, nega_samplin
 
     # print(features.tail(5))
     # print(features.info())
+
+    print('finish read')
+    return features.dropna()
+
+def read_gfa_element(nega_sampling=False):
+    '''直接返回元素含量百分比'''
+    print("start reading...")
+    raw = pd.read_csv('clean_gfa.csv')
+
+    features = pd.DataFrame(columns=['Ag', 'Al', 'Au', 'B', 'Ba', 'Be', 'C', 'Ca', 'Ce', \
+                                    'Co', 'Cr', 'Cu', 'Dy', 'Er', 'Fe', 'Ga', 'Gd', 'Ge', \
+                                    'Hf', 'Ho', 'In', 'Ir', 'La', 'Li', 'Lu', 'Mg', 'Mn', \
+                                    'Mo', 'Nb', 'Nd', 'Ni', 'P', 'Pb', 'Pd', 'Pr', 'Pt', \
+                                    'Rh', 'Ru', 'Sb', 'Sc', 'Si', 'Sm', 'Sn', 'Sr', 'T', \
+                                    'Ta', 'Tb', 'Ti', 'Tm', 'U', 'V', 'W', 'Y', 'Yb', 'Zn', 'Zr'])
+
+    pattern = re.compile(r'([A-Z][a-z]*)([0-9]*\.*[0-9]*)')
+    for item in raw['Alloy']:
+        # result 为该行所有元素与其下标的列表：[(元素, 下标), ...]
+        result = pattern.findall(item)
+        # print(result)
+        # 求元素含量总和
+        sum_quality = 0.0
+        for i in range(len(result)):
+            element = result[i][0]
+            num = result[i][1]
+            if num == '':
+                num = 1.0
+            sum_quality += float(num)
+        # 求各个元素质量百分比
+        details = {}
+        for i in range(len(result)):
+            element = result[i][0]
+            num = result[i][1]
+            if num == '':
+                num = 1
+            # percentage = float(num) / sum_quality
+            details[element] = float(num)
+
+        features = features.append(details, ignore_index=True)
+    
+    features = features.fillna(0.0)
+
+    features['Phase'] = raw['Phase']
+    # res = features.join(pd.get_dummies(raw[["Phase"]]))
+    features.loc[features['Phase'] == 'BMG', 'Phase'] = 0
+    features.loc[features['Phase'] == 'CRA', 'Phase'] = 1
+    features.loc[features['Phase'] == 'RMG', 'Phase'] = 2
+
+    # 负采样
+    if nega_sampling:
+        # 将 dmax 为 0.0 的 1552 条样本负采样为原来的 0.44
+        # features.drop(features[features['Phase'] == 1].sample(frac=0.56, axis=0).index, inplace=True)
+        # 将 dmax 为 0.1 的 3708 条样本负采样为原来的 0.32
+        features.drop(features[features['Phase'] == 2].sample(frac=0.5, axis=0).index, inplace=True)
 
     print('finish read')
     return features.dropna()
@@ -187,6 +244,22 @@ def pic():
         plt.savefig('./pics/pear_profeatures.png', dpi=500)
         plt.show()
 
+def read_atomic_features():
+    print("start reading...")
+    raw = pd.read_csv('Full-Dataset-Dmax.csv')
+    print('finish read')
+    # 变换dmax
+    raw.loc[raw['Dmax'] == 0, 'Dmax'] = -10
+    raw.loc[raw['Dmax'] == 0.1, 'Dmax'] = 0.001
+
+    
+    
+    # 将RMG 的 3708 条样本负采样为原来的 0.45
+    raw.drop(raw[raw['Phase Formation'] == 'RMG'].sample(frac=0.55, axis=0).index, inplace=True)
+
+    raw.drop(['Phase Formation', 'Alloy Formula'], axis=1, inplace=True)
+    return raw.dropna()
+
 if __name__ == '__main__':
     # raw = read_element(sort=True)
     # raw.to_csv('trans_dmax.csv', index=False)
@@ -197,5 +270,8 @@ if __name__ == '__main__':
     # pic()
     # calc_pac()
     # raw = read_pro_features()
-    raw = read_cmp()
-    print(raw.tail())
+    # raw = read_cmp()
+    # print(raw.tail())
+    raw = read_atomic_features()
+    print(raw.info())
+    # raw.to_csv('element_gfa_3_nega_samp.csv', index=False)
