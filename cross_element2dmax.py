@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import sys
-from big_predata import read_element, read_pro_features, calc_pac, read_atomic_features
+from big_predata import read_element, read_pro_features, calc_pac, read_atomic_features, read_atomic_features_30
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
@@ -183,17 +183,17 @@ class another_cross_attention(nn.Module):
         super(another_cross_attention, self).__init__()
         self.cross1 = cross_layer(input_dim)
         self.cross2 = cross_layer(input_dim)
-        self.cross3 = cross_layer(input_dim)
-        self.cross4 = cross_layer(input_dim)
+        # self.cross3 = cross_layer(input_dim)
+        # self.cross4 = cross_layer(input_dim)
         self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=2)
-        self.linear = nn.Linear(input_dim, 256)
-        self.final_linear = nn.Linear(256, 1)
+        self.linear = nn.Linear(input_dim, 50)
+        self.final_linear = nn.Linear(50, 1)
 
     def forward(self, input):
         cross_out = self.cross1(input, input)
         cross_out = self.cross2(input, cross_out)
-        cross_out = self.cross3(input, cross_out)
-        cross_out = self.cross4(input, cross_out)
+        # cross_out = self.cross3(input, cross_out)
+        # cross_out = self.cross4(input, cross_out)
         attention_out, _ = self.attention_layer(cross_out, cross_out, cross_out)
         output = nn.functional.relu(self.linear(attention_out))
         output = self.final_linear(output)
@@ -248,12 +248,14 @@ class pure_cross(nn.Module):
 class pure_attention(nn.Module):
     def __init__(self, input_dim, num_heads):
         super(pure_attention, self).__init__()
-        self.attention = multi_heads_self_attention(feature_dim=input_dim, num_heads=num_heads)
-        self.linear = nn.Linear(input_dim, 256)
-        self.final_linear = nn.Linear(256, 1)
+        self.attention1 = multi_heads_self_attention(feature_dim=input_dim, num_heads=num_heads)
+        # self.attention2 = multi_heads_self_attention(feature_dim=input_dim, num_heads=num_heads)
+        self.linear = nn.Linear(input_dim, 50)
+        self.final_linear = nn.Linear(50, 1)
 
     def forward(self, input):
-        output, _ = self.attention(input, input, input)
+        output, _ = self.attention1(input, input, input)
+        # output, _ = self.attention2(output, output, output)
         output = nn.functional.relu(self.linear(output))
         output = self.final_linear(output)
 
@@ -308,7 +310,7 @@ if __name__ == '__main__':
         y_train = torch.from_numpy(y_train)
         y_test = torch.from_numpy(y_test)
 
-    model = another_cross_attention(input_dim=x_train.size[0])
+    model = another_cross_attention(input_dim=x_train.size(1))
     if torch.cuda.is_available():
         model.to(device)
     model.double()
