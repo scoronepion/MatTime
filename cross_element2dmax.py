@@ -7,6 +7,7 @@ from big_predata import read_element, read_pro_features, calc_pac, read_atomic_f
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
+from sklearn import preprocessing
 
 class cross_layer(nn.Module):
     def __init__(self, input_dim):
@@ -292,10 +293,15 @@ if __name__ == '__main__':
     writer = SummaryWriter('./logs/')
     # raw = read_element(sort=True).values
     raw = read_atomic_features().values
-    # raw = calc_pac(num=50)
     features = raw[:, :-1]
     target = raw[:, -1:]
     x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.3)
+
+    ###数据标准化
+    scaler = preprocessing.StandardScaler().fit(x_train)
+    x_train = scaler.transform(x_train)
+    x_test = scaler.transform(x_test)
+
     print(x_train.shape)
     print(y_test.shape)
 
@@ -343,16 +349,16 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.81:
+                if r2 > 0.82:
                     save_flag = True
             else:
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.81:
+                if r2 > 0.82:
                     save_flag = True
 
         if save_flag:
-            torch.save(model, './models/cross_attention_atomic_081.bin')
+            torch.save(model, './models/cross_attention_atomic_082.bin')
             print('model save succeed')
             break
