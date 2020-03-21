@@ -286,6 +286,7 @@ def read_atomic_txtg():
     raw['Tx_Tg'] = Tx_Tg
     raw.drop(['Phase Formation', 'AAAAAlloy Formula', 'Tg', 'Tx', 'Tl', 'Dmax'], axis=1, inplace=True)
     # return raw.iloc[:, [89,88,85,63,33,50,59,15,87,66,92,61,49,75,34,83,52,43,32,93,69,90,84,51,98]].dropna()
+    # 全数据集：0.7112
     return raw
 
 
