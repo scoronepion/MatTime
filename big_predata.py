@@ -262,7 +262,10 @@ def read_atomic_features():
     # print (raw.shape)
     # collist = [1, 5, 7, 8, 10, 12, 13, 14, 15, 16, 17, 19, 27, 29, 31, 33, 35, 41, 42, 43, 45, 47, 49, 55, 58, 59, 61, 63, 65, 71, 76, 78, 79, 80, 81, 83, 86, 87, 89, 91]
 
-    return raw.iloc[:, [89, 88, 85, 63, 33, 50, 59, 15, 87, 66, 92, 61, 49, 75, 34, 83, 52, 43, 32, 93, 69, 90, 84, 51, 94]].dropna()
+    # # cross_attention_atomic_081.bin保存的是[89, 88, 85, 63, 33, 50, 59, 15, 87, 66, 92, 61, 49, 75, 34, 83, 52, 43, 32, 93, 69, 90, 84, 51, 94]
+    # /home/lab106/zy/MatTime/models/cross_attention_atomic_select_feature_13_07502.bin 存的是[12,13,32,33,54,66,70,74,75,76,84,85,86,94]
+    return raw.iloc[:, [12,13,32,33,54,66,70,74,75,76,84,85,86,94]].dropna()
+
     #return raw.dropna()
 
 def read_atomic_features_30():
@@ -273,6 +276,18 @@ def read_atomic_features_30():
 
     raw.drop(raw[raw['Dmax'] == 0.1].sample(frac=0.55, axis=0).index, inplace=True)
     return raw
+
+def read_atomic_txtg():
+    print("start reading...")
+    raw = pd.read_csv('Full_Dataset-Dmax-TTT.csv')
+    print('finish read')
+    raw.dropna(inplace=True)
+    Tx_Tg = raw['Tx'] - raw['Tg']
+    raw['Tx_Tg'] = Tx_Tg
+    raw.drop(['Phase Formation', 'AAAAAlloy Formula', 'Tg', 'Tx', 'Tl', 'Dmax'], axis=1, inplace=True)
+    # return raw.iloc[:, [89,88,85,63,33,50,59,15,87,66,92,61,49,75,34,83,52,43,32,93,69,90,84,51,98]].dropna()
+    return raw
+
 
 if __name__ == '__main__':
     # raw = read_element(sort=True)
@@ -286,6 +301,6 @@ if __name__ == '__main__':
     # raw = read_pro_features()
     # raw = read_cmp()
     # print(raw.tail())
-    raw = read_atomic_features()
+    raw = read_atomic_txtg()
     print(raw.info())
     # raw.to_csv('element_gfa_3_nega_samp.csv', index=False)
