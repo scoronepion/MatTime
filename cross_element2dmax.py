@@ -186,7 +186,7 @@ class another_cross_attention(nn.Module):
         self.cross2 = cross_layer(input_dim)
         self.cross3 = cross_layer(input_dim)
         self.cross4 = cross_layer(input_dim)
-        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=2)
+        self.attention_layer = multi_heads_self_attention(feature_dim=input_dim, num_heads=1)
         self.linear = nn.Linear(input_dim, 50)
         self.final_linear = nn.Linear(50, 1)
 
@@ -349,16 +349,16 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.71:
+                if r2 > 0.85:
                     save_flag = True
             else:
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.71:
+                if r2 > 0.85:
                     save_flag = True
 
         if save_flag:
-            torch.save(model, './models/cross_attention_atomic_txtg_071.bin')
+            torch.save(model, './models/cross_attention_atomic_txtg_select_085.bin')
             print('model save succeed')
             break 

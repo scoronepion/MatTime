@@ -200,7 +200,7 @@ def calc_pac(num):
     return new_raw
 
 def calc_mic():
-    raw = read_pro_features()
+    raw = read_atomic_txtg()
     length = raw.shape[1]
     res = np.zeros(shape=(length, length))
     i = 0
@@ -213,13 +213,14 @@ def calc_mic():
             res[i][j] = m.mic()
             j += 1
         i += 1
-    print(res)
-    with open('pro_features_mic.b', 'wb') as f:
-        pickle.dump(res, f)
+    print(sorted(enumerate(res[-1]), key=lambda x: x[1]))
+    # print(res)
+    # with open('pro_features_mic.b', 'wb') as f:
+    #     pickle.dump(res, f)
     # print(m.mic())
 
 def calc_pear():
-    raw = read_pro_features()
+    raw = read_atomic_txtg()
     length = raw.shape[1]
     res = np.zeros(shape=(length, length))
     i = 0
@@ -231,9 +232,9 @@ def calc_pear():
             res[i][j], _ = sc.stats.pearsonr(raw[item1].values, raw[item2].values)
             j += 1
         i += 1
-    print(res)
-    with open('pro_features_pear.b', 'wb') as f:
-        pickle.dump(res, f)
+    print(sorted(enumerate(res[-1]), key=lambda x: x[1]))
+    # with open('atomic_features_txtg_pear.b', 'wb') as f:
+    #     pickle.dump(res, f)
     # print(m.mic())
 
 def pic():
@@ -287,7 +288,8 @@ def read_atomic_txtg():
     raw.drop(['Phase Formation', 'AAAAAlloy Formula', 'Tg', 'Tx', 'Tl', 'Dmax'], axis=1, inplace=True)
     # return raw.iloc[:, [89,88,85,63,33,50,59,15,87,66,92,61,49,75,34,83,52,43,32,93,69,90,84,51,98]].dropna()
     # 全数据集：0.7112
-    return raw
+    # 互信息[39,64,72,81,34,21,78,19,65,80,9,1,69,91,13,52,31,50,90,73,23,37,35,71,67,94]:0.8015
+    return raw.iloc[:, [52,31,50,90,73,23,37,35,71,67,94]].dropna()
 
 
 if __name__ == '__main__':
@@ -305,3 +307,4 @@ if __name__ == '__main__':
     raw = read_atomic_txtg()
     print(raw.info())
     # raw.to_csv('element_gfa_3_nega_samp.csv', index=False)
+    # calc_mic()
