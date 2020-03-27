@@ -265,9 +265,11 @@ def read_atomic_features():
 
     # # cross_attention_atomic_081.bin保存的是[89, 88, 85, 63, 33, 50, 59, 15, 87, 66, 92, 61, 49, 75, 34, 83, 52, 43, 32, 93, 69, 90, 84, 51, 94]
     # /home/lab106/zy/MatTime/models/cross_attention_atomic_select_feature_13_07502.bin 存的是[12,13,32,33,54,66,70,74,75,76,84,85,86,94]
-    return raw.iloc[:, [12,13,32,33,54,66,70,74,75,76,84,85,86,94]].dropna()
+    # return raw.iloc[:, [12,13,32,33,54,66,70,74,75,76,84,85,86,94]].dropna()
 
-    #return raw.dropna()
+    # 投票法：[11,70,75,64,52,4,92,37,68,69,9,32,36,48,85,94]
+    # [4,92,37,68,69,9,32,36,48,85,94]: 0.7101
+    return raw.iloc[:, [4,92,37,68,69,9,32,36,48,85,94]].dropna()
 
 def read_atomic_features_30():
     print("start reading...")
@@ -289,7 +291,7 @@ def read_atomic_txtg():
     # return raw.iloc[:, [89,88,85,63,33,50,59,15,87,66,92,61,49,75,34,83,52,43,32,93,69,90,84,51,98]].dropna()
     # 全数据集：0.7112
     # 互信息[39,64,72,81,34,21,78,19,65,80,9,1,69,91,13,52,31,50,90,73,23,37,35,71,67,94]:0.8015
-    return raw.iloc[:, [52,31,50,90,73,23,37,35,71,67,94]].dropna()
+    return raw.iloc[:, [90,73,23,37,35,71,67,94]].dropna()
 
 
 if __name__ == '__main__':
@@ -304,7 +306,7 @@ if __name__ == '__main__':
     # raw = read_pro_features()
     # raw = read_cmp()
     # print(raw.tail())
-    raw = read_atomic_txtg()
+    raw = read_atomic_features()
     print(raw.info())
     # raw.to_csv('element_gfa_3_nega_samp.csv', index=False)
     # calc_mic()

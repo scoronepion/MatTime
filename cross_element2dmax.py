@@ -292,10 +292,10 @@ if __name__ == '__main__':
         device = torch.device('cuda:0')
     writer = SummaryWriter('./logs/')
     # raw = read_element(sort=True).values
-    raw = read_atomic_txtg().values
+    raw = read_atomic_features().values
     features = raw[:, :-1]
     target = raw[:, -1:]
-    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.1)
+    x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.3)
 
     ###数据标准化
     scaler = preprocessing.StandardScaler().fit(x_train)
@@ -349,16 +349,16 @@ if __name__ == '__main__':
                 r2 = r2_score(torch.squeeze(y_test.cpu()).detach().numpy(), torch.squeeze(pred.cpu()).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.85:
+                if r2 > 0.71:
                     save_flag = True
             else:
                 r2 = r2_score(torch.squeeze(y_test).detach().numpy(), torch.squeeze(pred).detach().numpy())
                 writer.add_scalar('R2', r2, epoch)
                 print('r2:', r2)
-                if r2 > 0.85:
+                if r2 > 0.71:
                     save_flag = True
 
         if save_flag:
-            torch.save(model, './models/cross_attention_atomic_txtg_select_085.bin')
+            torch.save(model, './models/cross_attention_atomic_dmax_vote_8_071.bin')
             print('model save succeed')
             break 
