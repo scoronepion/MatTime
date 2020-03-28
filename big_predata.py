@@ -200,7 +200,7 @@ def calc_pac(num):
     return new_raw
 
 def calc_mic():
-    raw = read_atomic_txtg()
+    raw = read_atomic_features()
     length = raw.shape[1]
     res = np.zeros(shape=(length, length))
     i = 0
@@ -214,9 +214,9 @@ def calc_mic():
             j += 1
         i += 1
     print(sorted(enumerate(res[-1]), key=lambda x: x[1]))
-    # print(res)
-    # with open('pro_features_mic.b', 'wb') as f:
-    #     pickle.dump(res, f)
+    print(res)
+    with open('dmax_atomic_features_94_no_negaSampling_mic.b', 'wb') as f:
+        pickle.dump(res, f)
     # print(m.mic())
 
 def calc_pear():
@@ -256,7 +256,7 @@ def read_atomic_features():
     raw = raw[~raw['Dmax'].isin([72])]
     
     # 将RMG 的 3708 条样本负采样为原来的 0.45
-    raw.drop(raw[raw['Phase Formation'] == 'RMG'].sample(frac=0.55, axis=0).index, inplace=True)
+    # raw.drop(raw[raw['Phase Formation'] == 'RMG'].sample(frac=0.55, axis=0).index, inplace=True)
 
     raw.drop(['Phase Formation', 'Alloy Formula'], axis=1, inplace=True)
 
@@ -269,7 +269,8 @@ def read_atomic_features():
 
     # 投票法：[11,70,75,64,52,4,92,37,68,69,9,32,36,48,85,94]
     # [4,92,37,68,69,9,32,36,48,85,94]: 0.7101
-    return raw.iloc[:, [4,92,37,68,69,9,32,36,48,85,94]].dropna()
+    # return raw.iloc[:, [4,92,37,68,69,9,32,36,48,85,94]].dropna()
+    return raw.dropna()
 
 def read_atomic_features_30():
     print("start reading...")
@@ -291,7 +292,8 @@ def read_atomic_txtg():
     # return raw.iloc[:, [89,88,85,63,33,50,59,15,87,66,92,61,49,75,34,83,52,43,32,93,69,90,84,51,98]].dropna()
     # 全数据集：0.7112
     # 互信息[39,64,72,81,34,21,78,19,65,80,9,1,69,91,13,52,31,50,90,73,23,37,35,71,67,94]:0.8015
-    return raw.iloc[:, [90,73,23,37,35,71,67,94]].dropna()
+    # return raw.iloc[:, [90,73,23,37,35,71,67,94]].dropna()
+    return raw.dropna()
 
 
 if __name__ == '__main__':
@@ -306,7 +308,8 @@ if __name__ == '__main__':
     # raw = read_pro_features()
     # raw = read_cmp()
     # print(raw.tail())
-    raw = read_atomic_features()
-    print(raw.info())
+    # raw = read_atomic_features()
+    # print(raw.info())
     # raw.to_csv('element_gfa_3_nega_samp.csv', index=False)
     # calc_mic()
+    calc_mic()
