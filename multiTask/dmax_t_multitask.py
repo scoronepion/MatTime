@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 import pickle
 import math
 # import imblearn
@@ -83,9 +84,9 @@ class multi_heads_self_attention(nn.Module):
         self.linear_attention = nn.Linear(feature_dim, feature_dim)
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(feature_dim)
-        self.linear_1 = nn.Linear(feature_dim, 256)
+        # self.linear_1 = nn.Linear(feature_dim, 256)
         # self.linear_2 = nn.Linear(256, feature_dim)
-        self.layer_final = nn.Linear(256, 1)
+        # self.layer_final = nn.Linear(feature_dim, 3)
 
     def forward(self, key, value, query):
         residual = query
@@ -100,7 +101,10 @@ class multi_heads_self_attention(nn.Module):
         value = value.view(batch_size * self.num_heads, -1, self.dim_per_head)
         query = query.view(batch_size * self.num_heads, -1, self.dim_per_head)
 
-        scale = (key.size(-1) // self.num_heads) ** -0.5
+        if key.size(-1) // self.num_heads != 0:
+            scale = (key.size(-1) // self.num_heads) ** -0.5
+        else:
+            scale = 1
         context, attention = self.sdp_attention(query, key, value, scale)
 
         # concat heads
@@ -108,29 +112,30 @@ class multi_heads_self_attention(nn.Module):
 
         output = self.linear_attention(context)
         output = self.dropout(output)
+        # output = torch.squeeze(output)
 
         # add residual and norm layer
         output = self.layer_norm(residual + output)
 
-        # pass through linear
-        output = nn.functional.relu(self.linear_1(output))
+        # # pass through linear
+        # output = nn.functional.relu(self.linear_1(output))
         # output = nn.functional.relu(self.linear_2(output))
 
-        # pass through layer final
-        output = self.layer_final(output)
+        # # pass through layer final
+        # output = self.layer_final(output)
 
         return output, attention
 
 class embedding_attention(nn.Module):
     def __init__(self, length, embedding_size):
         super(embedding_attention, self).__init__()
-        self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
-        self.attention = multi_heads_self_attention(feature_dim=length * embedding_size, num_heads=1)
-        self.linear_final = nn.Linear(length * embedding_size, 1)
+        # self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
+        self.attention = multi_heads_self_attention(feature_dim=length, num_heads=1)
+        self.linear_final = nn.Linear(length, 1)
 
     def forward(self, input):
-        embed = self.embedding(input)
-        output, _ = self.attention(embed, embed, embed)
+        # embed = self.embedding(input)
+        output, _ = self.attention(input, input, input)
         output = self.linear_final(output)
 
         return output
@@ -140,7 +145,7 @@ class MultiLossLayer(nn.Module):
         super(MultiLossLayer, self).__init__()
         self._sigmas_sq = nn.ParameterList([nn.Parameter(torch.empty(())) for i in range(list_length)])
         for p in self.parameters():
-            nn.init.uniform_(p,0.2,1)
+            nn.init.uniform_(p,0.2,1.0)
             # 初始化采用和原论文一样的方法......可能需要调整
         
     def forward(self, regression_loss, classifier_loss):
@@ -169,7 +174,7 @@ class multitask(nn.Module):
         loss_t = self.t_reg_loss(torch.squeeze(out_t), torch.squeeze(y_t))
         multi_loss = self.Layer_multi_loss(loss_dmax, loss_t)
 
-        return multi_loss, loss_cla, loss_reg, output_cla, output_reg
+        return multi_loss, loss_dmax, loss_t, out_dmax, out_t
 
 if __name__ == '__main__':
     raw = mtl_composition()
@@ -177,20 +182,22 @@ if __name__ == '__main__':
     target_dmax = raw.iloc[:, -2:-1].values
     target_t = raw.iloc[:, -1:].values
 
-    x_train_dmax, x_test_dmax, y_train_dmax, y_test_dmax = train_test_split(features, target_dmax, test_size=0.4)
-    x_train_t, x_test_t, y_train_t, y_test_t = train_test_split(features, target_t, test_size=0.4)
+    x_train_dmax, x_test_dmax, y_train_dmax, y_test_dmax = train_test_split(features, target_dmax, test_size=0.1)
+    x_train_t, x_test_t, y_train_t, y_test_t = train_test_split(features, target_t, test_size=0.1)
     batch_size = 1  
     features_size = 55
+    # print(x_train_dmax.shape)
+    # print(x_train_t.shape)
     # target_size = 3
 
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
         # dmax task
         x_train_dmax = torch.from_numpy(x_train_dmax).view(batch_size, -1, features_size).to(device)
-        y_train_dmax = torch.from_numpy(y_train_dmax).view(batch_size, -1).long().to(device)
+        y_train_dmax = torch.from_numpy(y_train_dmax).view(batch_size, -1).to(device)
 
         x_test_dmax = torch.from_numpy(x_test_dmax).view(batch_size, -1, features_size).to(device)
-        y_test_dmax = torch.from_numpy(y_test_dmax).view(batch_size, -1).long().to(device)
+        y_test_dmax = torch.from_numpy(y_test_dmax).view(batch_size, -1).to(device)
 
         # t task
         x_train_t = torch.from_numpy(x_train_t).view(batch_size, -1, features_size).to(device)
@@ -201,10 +208,10 @@ if __name__ == '__main__':
     else:
         # dmax task
         x_train_dmax = torch.from_numpy(x_train_dmax).view(batch_size, -1, features_size)
-        y_train_dmax = torch.from_numpy(y_train_dmax).view(batch_size, -1).long()
+        y_train_dmax = torch.from_numpy(y_train_dmax).view(batch_size, -1)
 
         x_test_dmax = torch.from_numpy(x_test_dmax).view(batch_size, -1, features_size)
-        y_test_dmax = torch.from_numpy(y_test_dmax).view(batch_size, -1).long()
+        y_test_dmax = torch.from_numpy(y_test_dmax).view(batch_size, -1)
 
         # t task
         x_train_t = torch.from_numpy(x_train_t).view(batch_size, -1, features_size)
@@ -213,16 +220,16 @@ if __name__ == '__main__':
         x_test_t = torch.from_numpy(x_test_t).view(batch_size, -1, features_size)
         y_test_t = torch.from_numpy(y_test_t).view(batch_size, -1)
 
-    multitask = multitask()
+    model = multitask()
     if torch.cuda.is_available():
-        multitask.to(device)
-    multitask.double()
+        model.to(device)
+    model.double()
 
     # criterion = nn.CrossEntropyLoss()
     params = [
-        {'params': multitask.Layer_multi_loss.parameters(), 'lr': 0.0001}
-        # {'params': multitask.regressor.parameters(), 'lr': 0.0001},
-        # {'params': multitask.classifier.parameters(), 'lr': 0.000001}
+        {'params': model.Layer_multi_loss.parameters(), 'lr': 0.0001},
+        {'params': model.dmax_reg.parameters(), 'lr': 0.0001},
+        {'params': model.t_reg.parameters(), 'lr': 0.001}
     ]
     optimizer = optim.Adam(params)
 
@@ -231,7 +238,7 @@ if __name__ == '__main__':
     for epoch in range(epoch_num):
         def closure():
             optimizer.zero_grad()
-            loss, _, _, _, _ = multitask(x_train_dmax, y_train_dmax, x_train_t, y_train_t)
+            loss, _, _, _, _ = model(x_train_dmax, y_train_dmax, x_train_t, y_train_t)
             # loss = criterion(torch.squeeze(out), torch.squeeze(y_train))
             # print('loss:', loss.data.item())
             # loss_list.append(loss.data.item())
@@ -242,7 +249,7 @@ if __name__ == '__main__':
 
         if epoch % 100 == 99:
             print('epoch : ', epoch)
-            loss, loss_dmax, loss_t, output_dmax, output_t = multitask(x_test_dmax, y_test_dmax, x_test_t, y_test_t)
+            loss, loss_dmax, loss_t, output_dmax, output_t = model(x_test_dmax, y_test_dmax, x_test_t, y_test_t)
             print('test multi loss:', loss.data.item())
             # print('test classification loss:', loss_dmax.data.item())
             # print('test regression loss:', loss_t.data.item())

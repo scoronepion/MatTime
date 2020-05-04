@@ -1,7 +1,7 @@
 import pandas as pd
 
 def mtl_composition():
-    raw = pd.read_csv("multiTask\cmp-all.csv")
+    raw = pd.read_csv("multiTask/cmp-all.csv")
     raw['Tx-Tg'] = raw['Tx'] - raw['Tg']
     raw.drop(columns=['sum', 'Tx', 'Tg', 'Tl', 'Phase'], inplace=True)
     # raw.loc[raw['Phase'] == 'BMG', 'Phase'] = 0
