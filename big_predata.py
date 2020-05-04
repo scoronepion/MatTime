@@ -312,4 +312,6 @@ if __name__ == '__main__':
     # print(raw.info())
     # raw.to_csv('element_gfa_3_nega_samp.csv', index=False)
     # calc_mic()
-    calc_mic()
+    # calc_mic()
+    raw = read_atomic_txtg()
+    print(raw.head())
