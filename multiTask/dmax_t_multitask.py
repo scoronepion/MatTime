@@ -141,7 +141,15 @@ class multitask(nn.Module):
         return multi_loss, loss_dmax, loss_t, out_dmax, out_t
 
 if __name__ == '__main__':
-    raw = composition_atomic_feature()
+
+    # 成分特征
+    raw = mtl_composition()
+    # 原子特征
+    # raw = mtl_atomic()
+    # 拼接特征
+    # raw = composition_atomic_feature()
+
+
     features = raw.iloc[:, :-2].values
     target_dmax = raw.iloc[:, -2:-1].values
     target_t = raw.iloc[:, -1:].values
@@ -189,7 +197,7 @@ if __name__ == '__main__':
         model.to(device)
     model.double()
 
-    # criterion = nn.CrossEntropyLoss()
+    # 学习率分任务设置
     params = [
         {'params': model.Layer_multi_loss.parameters(), 'lr': 0.0001},
         {'params': model.dmax_reg.parameters(), 'lr': 0.0001},
@@ -215,8 +223,6 @@ if __name__ == '__main__':
             print('epoch : ', epoch)
             loss, loss_dmax, loss_t, output_dmax, output_t = model(x_test_dmax, y_test_dmax, x_test_t, y_test_t)
             print('test multi loss:', loss.data.item())
-            # print('test classification loss:', loss_dmax.data.item())
-            # print('test regression loss:', loss_t.data.item())
 
             print('dmax r2:', r2_score(torch.squeeze(y_test_dmax.cpu()), torch.squeeze(output_dmax.data.cpu())))
             print('t r2:', r2_score(torch.squeeze(y_test_t.cpu()), torch.squeeze(output_t.data.cpu())))
