@@ -5,44 +5,11 @@ import numpy as np
 import pickle
 import math
 # import imblearn
-from MTL_predata import mtl_composition
+from MTL_predata import mtl_composition, mtl_atomic, composition_atomic_feature
 # from imblearn.over_sampling import SMOTE
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, recall_score, classification_report
-
-class chemical_embedding(nn.Module):
-    '''返回元素 embedding 表示'''
-    def __init__(self, length, embedding_size):
-        '''length: 元素数量；embedding_size: 嵌入大小'''
-        super(chemical_embedding, self).__init__()
-        self.length = length
-        self.embedding_size = embedding_size
-        self.embedding = nn.Embedding(length, embedding_size)
-
-    def forward(self, input):
-        if torch.cuda.is_available():
-            device = torch.device('cuda:0')
-        index = np.tile([i for i in range(self.length)], (input.size(0), 1))
-        if torch.cuda.is_available():
-            index = torch.tensor(index, dtype=torch.long).to(device)
-        else:
-            index = torch.tensor(index, dtype=torch.long)
-        embed = self.embedding(index).view(-1)
-        # 输入变换
-        if torch.cuda.is_available():
-            trans = torch.zeros(self.length, self.length * self.embedding_size, dtype=torch.float64).to(device)
-        else:
-            trans = torch.zeros(self.length, self.length * self.embedding_size, dtype=torch.float64)
-        flag = 0
-        for i in range(self.length):
-            for j in range(self.embedding_size):
-                trans[i][flag + j] = 1
-            flag += self.embedding_size
-        expanded_data = torch.einsum('ij,jk->ik', [input, trans]).view(-1)
-        result = (expanded_data * embed).view(input.size(0), 1, -1)
-
-        return result
 
 class scaled_dot_product_attention(nn.Module):
     def __init__(self, att_dropout=0.0):
@@ -71,7 +38,7 @@ class scaled_dot_product_attention(nn.Module):
         return context, attention
 
 class multi_heads_self_attention(nn.Module):
-    def __init__(self, feature_dim=55, num_heads=1, dropout=0.0):
+    def __init__(self, feature_dim, num_heads=1, dropout=0.0):
         super(multi_heads_self_attention, self).__init__()
 
         self.dim_per_head = feature_dim // num_heads
@@ -127,14 +94,12 @@ class multi_heads_self_attention(nn.Module):
         return output, attention
 
 class embedding_attention(nn.Module):
-    def __init__(self, length, embedding_size):
+    def __init__(self, feature_dim):
         super(embedding_attention, self).__init__()
-        # self.embedding = chemical_embedding(length=length, embedding_size=embedding_size)
-        self.attention = multi_heads_self_attention(feature_dim=length, num_heads=1)
-        self.linear_final = nn.Linear(length, 1)
+        self.attention = multi_heads_self_attention(feature_dim=feature_dim)
+        self.linear_final = nn.Linear(feature_dim, 1)
 
     def forward(self, input):
-        # embed = self.embedding(input)
         output, _ = self.attention(input, input, input)
         output = self.linear_final(output)
 
@@ -146,7 +111,6 @@ class MultiLossLayer(nn.Module):
         self._sigmas_sq = nn.ParameterList([nn.Parameter(torch.empty(())) for i in range(list_length)])
         for p in self.parameters():
             nn.init.uniform_(p,0.2,1.0)
-            # 初始化采用和原论文一样的方法......可能需要调整
         
     def forward(self, regression_loss, classifier_loss):
         # regression loss
@@ -159,10 +123,10 @@ class MultiLossLayer(nn.Module):
         return loss
 
 class multitask(nn.Module):
-    def __init__(self):
+    def __init__(self, feature_dim):
         super(multitask, self).__init__()
-        self.dmax_reg = embedding_attention(length=55, embedding_size=3)
-        self.t_reg = embedding_attention(length=55, embedding_size=3)
+        self.dmax_reg = embedding_attention(feature_dim=feature_dim)
+        self.t_reg = embedding_attention(feature_dim=feature_dim)
         self.Layer_multi_loss = MultiLossLayer(2)
         self.dmax_reg_loss = nn.MSELoss()
         self.t_reg_loss = nn.MSELoss()
@@ -177,7 +141,7 @@ class multitask(nn.Module):
         return multi_loss, loss_dmax, loss_t, out_dmax, out_t
 
 if __name__ == '__main__':
-    raw = mtl_composition()
+    raw = composition_atomic_feature()
     features = raw.iloc[:, :-2].values
     target_dmax = raw.iloc[:, -2:-1].values
     target_t = raw.iloc[:, -1:].values
@@ -185,8 +149,8 @@ if __name__ == '__main__':
     x_train_dmax, x_test_dmax, y_train_dmax, y_test_dmax = train_test_split(features, target_dmax, test_size=0.1)
     x_train_t, x_test_t, y_train_t, y_test_t = train_test_split(features, target_t, test_size=0.1)
     batch_size = 1  
-    features_size = 55
-    # print(x_train_dmax.shape)
+    features_size = features.shape[1]
+    # print(features.shape)
     # print(x_train_t.shape)
     # target_size = 3
 
@@ -220,7 +184,7 @@ if __name__ == '__main__':
         x_test_t = torch.from_numpy(x_test_t).view(batch_size, -1, features_size)
         y_test_t = torch.from_numpy(y_test_t).view(batch_size, -1)
 
-    model = multitask()
+    model = multitask(feature_dim=features_size)
     if torch.cuda.is_available():
         model.to(device)
     model.double()
