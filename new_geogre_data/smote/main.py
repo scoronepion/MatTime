@@ -9,9 +9,10 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import r2_score
 import os
+import copy
 
 def read_data():
-    raw = pd.read_csv('/home/lab106/zy/new_geogre_data/sup_exp/wyjData.csv')
+    raw = pd.read_csv('/home/lab106/zy/MatTime/new_geogre_data/sup_exp/wyjData.csv')
     raw.drop(columns=['id', 'pic_num', 'formula', 'sTemper', 'sHour', 'deltaT'], inplace=True)
     # 归一化
     max_min_scaler = lambda x : (x-np.min(x))/(np.max(x)-np.min(x))
@@ -37,103 +38,75 @@ def read_data():
     raw['alpha'] = raw[['alpha']].apply(max_min_scaler)
     return raw.dropna().astype('float64')
 
-def svr_helper(flag, train, test, train_smogn):
-    if flag == '1':
-        # 预测t1
-        cols = ['t2', 'alpha']
-        train.drop(columns=cols, inplace=True)
-        test.drop(columns=cols, inplace=True)
-        train_smogn.drop(columns=cols, inplace=True)
-        print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
-
-        model1 = SVR(gamma='auto')
-        model1.fit(train.values[:, :-1], train.values[:, -1])
-        print(model1.score(test.values[:, :-1], test.values[:, -1]))
-
-        model2 = SVR(gamma='auto')
-        model2.fit(train_smogn.values[:, :-1], train_smogn.values[:, -1])
-        print(model2.score(test.values[:, :-1], test.values[:, -1]))
-
-    elif flag == '2':
-        # 预测t2
-        cols = ['t1', 'alpha']
-        train.drop(columns=cols, inplace=True)
-        test.drop(columns=cols, inplace=True)
-        train_smogn.drop(columns=cols, inplace=True)
-        print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
-
-        model1 = SVR(gamma='auto')
-        model1.fit(train.values[:, :-1], train.values[:, -1])
-        print(model1.score(test.values[:, :-1], test.values[:, -1]))
-
-        model2 = SVR(gamma='auto')
-        model2.fit(train_smogn.values[:, :-1], train_smogn.values[:, -1])
-        print(model2.score(test.values[:, :-1], test.values[:, -1]))
-
-    elif flag == 'alpha':
-        # 预测alpha
-        cols = ['t1', 't2']
-        train.drop(columns=cols, inplace=True)
-        test.drop(columns=cols, inplace=True)
-        train_smogn.drop(columns=cols, inplace=True)
-        print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
-
-        model1 = SVR(gamma='auto')
-        model1.fit(train.values[:, :-1], train.values[:, -1])
-        print(model1.score(test.values[:, :-1], test.values[:, -1]))
-
-        model2 = SVR(gamma='auto')
-        model2.fit(train_smogn.values[:, :-1], train_smogn.values[:, -1])
-        print(model2.score(test.values[:, :-1], test.values[:, -1]))
-
-def rfr_helper(flag, train, test, train_smogn):
-    if flag == '1':
-        # 预测t1
-        cols = ['t2', 'alpha']
-        train.drop(columns=cols, inplace=True)
-        test.drop(columns=cols, inplace=True)
-        train_smogn.drop(columns=cols, inplace=True)
-        print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
-
-        reg1 = RandomForestRegressor(n_estimators=10)
-        reg1.fit(train.values[:, :-1], train.values[:, -1])
-        print(reg1.score(test.values[:, :-1], test.values[:, -1]))
-
-        reg2 = RandomForestRegressor(n_estimators=10)
-        reg2.fit(train_smogn.values[:, :-1], train_smogn.values[:, -1])
-        print(reg2.score(test.values[:, :-1], test.values[:, -1]))
-
-    elif flag == '2':
-        # 预测t2
-        cols = ['t1', 'alpha']
-        train.drop(columns=cols, inplace=True)
-        test.drop(columns=cols, inplace=True)
-        train_smogn.drop(columns=cols, inplace=True)
-        print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
-
-        reg1 = RandomForestRegressor(n_estimators=10)
-        reg1.fit(train.values[:, :-1], train.values[:, -1])
-        print(reg1.score(test.values[:, :-1], test.values[:, -1]))
-
-        reg2 = RandomForestRegressor(n_estimators=10)
-        reg2.fit(train_smogn.values[:, :-1], train_smogn.values[:, -1])
-        print(reg2.score(test.values[:, :-1], test.values[:, -1]))
+def svr_helper(train_origin, test_origin, train_smogn_origin):
+    train = copy.deepcopy(train_origin)
+    test = copy.deepcopy(test_origin)
+    train_smogn = copy.deepcopy(train_smogn_origin)
     
-    elif flag == 'alpha':
-        # 预测alpha
-        cols = ['t1', 't2']
-        train.drop(columns=cols, inplace=True)
-        test.drop(columns=cols, inplace=True)
-        train_smogn.drop(columns=cols, inplace=True)
-        print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
+    print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
 
-        reg1 = RandomForestRegressor(n_estimators=10)
-        reg1.fit(train.values[:, :-1], train.values[:, -1])
-        print(reg1.score(test.values[:, :-1], test.values[:, -1]))
+    # 预测t1
+    model1 = SVR(gamma='auto')
+    model1.fit(train.values[:, :-3], train.values[:, -3])
+    print('t1 before score = {}'.format(model1.score(test.values[:, :-3], test.values[:, -3])))
 
-        reg2 = RandomForestRegressor(n_estimators=10)
-        reg2.fit(train_smogn.values[:, :-1], train_smogn.values[:, -1])
-        print(reg2.score(test.values[:, :-1], test.values[:, -1]))
+    model2 = SVR(gamma='auto')
+    model2.fit(train_smogn.values[:, :-3], train_smogn.values[:, -3])
+    print('t1 after score = {}'.format(model2.score(test.values[:, :-3], test.values[:, -3])))
+
+    # 预测t2
+    model3 = SVR(gamma='auto')
+    model3.fit(train.values[:, :-3], train.values[:, -2])
+    print('t2 before score = {}'.format(model3.score(test.values[:, :-3], test.values[:, -2])))
+
+    model4 = SVR(gamma='auto')
+    model4.fit(train_smogn.values[:, :-3], train_smogn.values[:, -2])
+    print('t2 after score = {}'.format(model4.score(test.values[:, :-3], test.values[:, -2])))
+
+    # 预测alpha
+    model5 = SVR(gamma='auto')
+    model5.fit(train.values[:, :-3], train.values[:, -1])
+    print('alpha before score = {}'.format(model5.score(test.values[:, :-3], test.values[:, -1])))
+
+    model6 = SVR(gamma='auto')
+    model6.fit(train_smogn.values[:, :-3], train_smogn.values[:, -1])
+    print('alpha after score = {}'.format(model6.score(test.values[:, :-3], test.values[:, -1])))
+
+def rfr_helper(train_origin, test_origin, train_smogn_origin):
+    train = copy.deepcopy(train_origin)
+    test = copy.deepcopy(test_origin)
+    train_smogn = copy.deepcopy(train_smogn_origin)
+
+    param_n_estimators = 2
+
+    print('train shape = {}, train_smogn shape = {}'.format(train.shape, train_smogn.shape))
+
+    # 预测t1
+    reg1 = RandomForestRegressor(n_estimators=param_n_estimators)
+    reg1.fit(train.values[:, :-3], train.values[:, -3])
+    print('before score = {}'.format(reg1.score(test.values[:, :-3], test.values[:, -3])))
+
+    reg2 = RandomForestRegressor(n_estimators=param_n_estimators)
+    reg2.fit(train_smogn.values[:, :-3], train_smogn.values[:, -3])
+    print('after score = {}'.format(reg2.score(test.values[:, :-3], test.values[:, -3])))
+
+    # 预测t2
+    reg3 = RandomForestRegressor(n_estimators=param_n_estimators)
+    reg3.fit(train.values[:, :-3], train.values[:, -2])
+    print('before score = {}'.format(reg3.score(test.values[:, :-3], test.values[:, -2])))
+
+    reg4 = RandomForestRegressor(n_estimators=param_n_estimators)
+    reg4.fit(train_smogn.values[:, :-3], train_smogn.values[:, -2])
+    print('after score = {}'.format(reg4.score(test.values[:, :-3], test.values[:, -2])))
+
+    # 预测alpha
+    reg5 = RandomForestRegressor(n_estimators=param_n_estimators)
+    reg5.fit(train.values[:, :-3], train.values[:, -1])
+    print('before score = {}'.format(reg5.score(test.values[:, :-3], test.values[:, -1])))
+
+    reg6 = RandomForestRegressor(n_estimators=param_n_estimators)
+    reg6.fit(train_smogn.values[:, :-3], train_smogn.values[:, -1])
+    print('after score = {}'.format(reg6.score(test.values[:, :-3], test.values[:, -1])))
 
 class scaled_dot_product_attention(nn.Module):
     def __init__(self, att_dropout=0.0):
@@ -424,18 +397,22 @@ def mtl_helper(train, test, pos):
 
 
 if __name__ == '__main__':
-    for i in range(100):
-        rawOrigin = read_data()
-        rawOrigin = rawOrigin.sample(frac=1).reset_index(drop=True)
-        raw = rawOrigin.drop(columns=['alpha'])
-        raw['alpha'] = rawOrigin['alpha']
-        train_size = int(raw.shape[0] * 0.7)
-        train = raw[: train_size]
-        test = raw[train_size: ]
-        # train_smogn = smogn.smoter(
-        #     data = train, 
-        #     y = 'alpha',
-        #     k = 9,
-        #     samp_method = 'extreme'
-        # )
-        mtl_helper(train, test, str(i))
+    rawOrigin = read_data()
+    rawOrigin = rawOrigin.sample(frac=1).reset_index(drop=True)
+    raw = rawOrigin.drop(columns=['alpha'])
+    raw['alpha'] = rawOrigin['alpha']
+    train_size = int(raw.shape[0] * 0.7)
+    train = raw[: train_size]
+    test = raw[train_size: ]
+    train_smogn = raw[: train_size]
+    for i in range(10):
+        print('第 {} 次扩充'.format(i))
+        train_smogn = smogn.smoter(
+            data = train_smogn, 
+            y = 'alpha',
+            k = 9,
+            samp_method = 'extreme'
+        )
+        # mtl_helper(train, test, str(i))
+        svr_helper(train, test, train_smogn)
+        # rfr_helper(train, test, train_smogn)
